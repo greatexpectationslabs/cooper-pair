@@ -1,0 +1,1114 @@
+# pylint: disable=C0103, E0401, R0201
+"""cooper_pair is a small library for programmatic access to the DQM
+GraphQL API."""
+
+import json
+import os
+import tempfile
+import traceback
+try:  # pragma: nocover
+    from urllib.parse import parse_qs
+except ImportError:
+    from urlparse import parse_qs
+import requests
+from gql import gql, Client
+from gql.transport.requests import RequestsHTTPTransport
+
+
+TIMEOUT = 10
+
+MAX_RETRIES = 10
+
+DQM_GRAPHQL_URL = os.environ.get('DQM_GRAPHQL_URL')
+
+ADD_EVALUATION_MUTATION = gql("""
+  mutation addEvaluationMutation($evaluation: AddEvaluationInput!) {
+    addEvaluation(input: $evaluation) {
+      evaluation {
+        id
+        dataset {
+            id
+        }
+        checkpoint {
+            id
+        }
+        createdBy {
+            id
+        }
+        organization {
+            id
+        }
+        results {
+            pageInfo {
+                hasNextPage
+                hasPreviousPage
+                startCursor
+                endCursor
+            }
+            edges {
+                cursor
+                node {
+                    id
+                }
+            }
+        }
+        status
+      }
+    }
+  }
+""")
+
+ADD_DATASET_MUTATION = gql("""
+  mutation addDatasetMutation($dataset: AddDatasetInput!) {
+    addDataset(input: $dataset) {
+      dataset {
+        id
+        project {
+          id
+        }
+        createdBy {
+          id
+        }
+        filename
+        s3Url
+        s3Key
+        organization {
+          id
+        }
+      }
+    }
+  }
+""")
+
+ADD_CHECKPOINT_MUTATION = gql("""
+  mutation addCheckpointMutation($checkpoint: AddCheckpointInput!) {
+    addCheckpoint(input: $checkpoint) {
+      checkpoint {
+        id
+        name
+        slug
+        autoinspectionStatus
+        project {
+          id
+        }
+        createdBy {
+          id
+        }
+        expectations {
+            pageInfo {
+                hasNextPage
+                hasPreviousPage
+                startCursor
+                endCursor
+            }
+            edges {
+                cursor
+                node {
+                    id
+                }
+            }
+        }
+        sections {
+            pageInfo {
+                hasNextPage
+                hasPreviousPage
+                startCursor
+                endCursor
+            }
+            edges {
+                cursor
+                node {
+                    id
+                }
+            }
+        }
+        organization {
+          id
+        }
+        notifyOn
+      }
+    }
+  }
+""")
+
+EXPECTATION_QUERY = gql("""
+  query expectationQuery($id: ID!) {
+    expectation(id: $id) {
+        id
+        expectationType
+        expectationKwargs
+        isActivated
+        createdBy {
+            id
+        }
+        organization {
+            id
+        }
+        question {
+            id
+        }
+        checkpoint {
+            id
+        }
+    }
+  }
+""")
+
+DATASET_QUERY = gql("""
+  query datasetQuery($id: ID!) {
+    dataset(id: $id) {
+        id
+        project {
+            id
+        }
+        createdBy {
+            id
+        }
+        filename
+        s3Key
+        organization {
+            id
+        }
+    }
+  }
+""")
+
+ADD_EXPECTATION_MUTATION = gql("""
+  mutation addExpectationMutation($expectation: AddExpectationInput!) {
+    addExpectation(input: $expectation) {
+      expectation {
+        id
+        expectationType
+        expectationKwargs
+        isActivated
+        createdBy {
+            id
+        }
+        organization {
+            id
+        }
+        question {
+            id
+        }
+        checkpoint {
+            id
+        }
+      }
+    }
+  }
+""")
+
+UPDATE_EXPECTATION_MUTATION = gql("""
+  mutation updateExpectationMutation($expectation: UpdateExpectationInput!) {
+    updateExpectation(input: $expectation) {
+      expectation {
+        id
+        expectationType
+        expectationKwargs
+        isActivated
+        createdBy {
+            id
+        }
+        organization {
+            id
+        }
+        question {
+            id
+        }
+        checkpoint {
+            id
+        }
+      }
+    }
+  }
+""")
+
+LIST_CHECKPOINTS_QUERY = gql("""
+  query listCheckpointQuery{
+    allCheckpoints {
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      edges {
+        cursor
+        node {
+          id
+          name
+          autoinspectionStatus
+          project {
+            id
+          }
+          organization {
+            id
+          }
+          expectations {
+            pageInfo {
+              hasNextPage
+              hasPreviousPage
+              startCursor
+              endCursor
+            }
+            edges {
+              cursor
+              node {
+                id
+                expectationType
+                expectationKwargs
+                isActivated
+                createdBy {
+                  id
+                }
+                organization {
+                  id
+                }
+                question {
+                  id
+                }
+                checkpoint {
+                  id
+                }
+              }
+            }
+          }
+          sections {
+            pageInfo {
+              hasNextPage
+              hasPreviousPage
+              startCursor
+              endCursor
+            }
+            edges {
+              cursor
+              node {
+                id
+                name
+                slug
+                sequenceNumber
+                createdBy {
+                  id
+                }
+                questions {
+                  pageInfo {
+                    hasNextPage
+                    hasPreviousPage
+                    startCursor
+                    endCursor
+                  }
+                  edges {
+                    cursor
+                    node {
+                      id
+                      questionObj
+                      expectation {
+                        id
+                      }
+                      sequenceNumber
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+""")
+
+CHECKPOINT_QUERY = gql("""
+  query checkpointQuery($id: ID!) {
+    checkpoint(id: $id) {
+      id
+      autoinspectionStatus
+      project {
+          id
+      }
+      organization {
+          id
+      }
+      expectations {
+        pageInfo {
+            hasNextPage
+            hasPreviousPage
+            startCursor
+            endCursor
+        }
+        edges {
+            cursor
+            node {
+                id
+                expectationType
+                expectationKwargs
+                isActivated
+                createdBy {
+                    id
+                }
+                organization {
+                    id
+                }
+                question {
+                    id
+                }
+                checkpoint {
+                    id
+                }
+            }
+        }
+      }
+      sections {
+        pageInfo {
+            hasNextPage
+            hasPreviousPage
+            startCursor
+            endCursor
+        }
+        edges {
+            cursor
+            node {
+                id
+                name
+                slug
+                sequenceNumber
+                createdBy {
+                    id
+                }
+                questions {
+                    pageInfo {
+                        hasNextPage
+                        hasPreviousPage
+                        startCursor
+                        endCursor
+                    }
+                    edges {
+                        cursor
+                        node {
+                            id
+                            questionObj
+                            expectation {
+                                id
+                            }
+                            sequenceNumber
+                        }
+                    }
+                }
+            }
+        }
+      }
+    }
+  }
+""")
+
+UPDATE_CHECKPOINT_MUTATION = gql("""
+  mutation($updateCheckpoint: UpdateCheckpointInput!) {
+    updateCheckpoint(input: $updateCheckpoint) {
+      checkpoint {
+        id
+        expectations {
+            pageInfo {
+                hasNextPage
+                hasPreviousPage
+                startCursor
+                endCursor
+            }
+            edges {
+                cursor
+                node {
+                    id
+                    expectationType
+                    expectationKwargs
+                    isActivated
+                    createdBy {
+                        id
+                    }
+                    organization {
+                        id
+                    }
+                    question {
+                        id
+                    }
+                    checkpoint {
+                        id
+                    }
+                }
+            }
+        }
+      }
+    }
+  }
+""")
+
+
+def generate_slug(name):
+    """Utility function to generate snake-case-slugs.
+
+    Args:
+        name (str) -- the name to convert to a slug
+    
+    Returns:
+        A string slug.
+    """
+    # TODO: this functionality should move to the server
+    return name.lower().replace(' ', '-')
+
+
+def generate_questions(expectations):
+    """Utility function to generate questions from expectations.
+
+    Args:
+        expectations (list) - A list of expectation dicts, in the form
+            returned by great_expectations.
+
+    Returns:
+        A list of dicts representing questions, ready for GraphQL.
+    """
+
+    questions = []
+    sequence_number = 0
+    # TODO: sort by the ordinary sort order for columns here
+    for expectation in expectations:
+        munged = {
+            'createdById': 1,  # TODO: this should be passed in
+            'expectationType': expectation['expectation_type'],
+            'expectationKwargs': json.dumps(expectation['kwargs']),
+            'isActivated': expectation.get('isActivated') or True
+        }
+        # TODO: we need to actually come up with a good representation of the
+        # question object
+        questions.append(
+            {'questionObj': json.dumps({'title': 'Placeholder'}),
+             'expectation': munged,
+             'sequenceNumber': sequence_number})
+        sequence_number += 1
+    return questions
+
+
+class CooperPair(object):
+    """Entrypoint to the API."""
+    def __init__(
+            self,
+            graphql_endpoint=DQM_GRAPHQL_URL,
+            timeout=TIMEOUT,
+            max_retries=MAX_RETRIES):
+        """Create a new instance of CooperPair.
+
+        Kwargs:
+            graphql_endpoint (str) -- The GraphQL endpoint to hit (default:
+                the value of the DQM_GRAPHQL_URL environment variable).
+            timeout (int) -- The number of seconds to wait for API responses
+                before timing out (default: 10).
+            max_retries (int) -- The number of times to retry API requests
+                before failing (default: 10). The worst-case time an API call
+                may take is (max_retries x timeout) seconds.
+
+        Raises:
+            AssertionError, if graphql_endpoint is not set and the
+                DQM_GRAPHQL_URL environment variable is not set.
+
+        Returns:
+            A new instance of CooperPair
+        """
+        assert graphql_endpoint, \
+            'CooperPair.init: graphql_endpoint was None and ' \
+            'DQM_GRAPHQL_URL not set.'
+
+        self.transport = RequestsHTTPTransport(
+            url=graphql_endpoint, use_json=True, timeout=timeout)
+
+        try:
+            self.client = Client(
+                transport=self.transport,
+                fetch_schema_from_transport=True,
+                retries=MAX_RETRIES)
+        except requests.ConnectionError:  # pragma: nocover
+            raise Exception(
+                'Sorry! Since cooper_pair introspects the GraphQL schema '
+                'from the server, you must have connectivity in order to '
+                'initialize an instance of CooperPair! Double check that '
+                'cooper is running as expected at {}. Original traceback: '
+                '{}'.format(graphql_endpoint, traceback.format_exc()))
+
+    def query(self, query, variables=None):
+        """Workhorse to execute queries.
+
+        Args:
+            query (graphql.language.ast.Document) -- A valid GraphQL query,
+                for instance as generated by running gql.gql on the string
+                representation of a query.
+
+        Kwargs:
+            variables (dict) -- A Python dict containing variables to be
+                passed along with the GraphQL query (default: None, no 
+                variables will be passed).
+
+        Returns:
+            A dict containing the parsed results of the query.
+        """
+        return self.client.execute(query, variable_values=variables)
+
+    def add_evaluation(self, dataset_id, checkpoint_id, created_by_id):
+        """Add a new evaluation.
+
+        Args:
+            dataset_id (int or str Relay id) -- The id of the dataset on which
+                to run the evaluation.
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
+                evaluate.
+            created_by_id (int or str Relay id) -- The id of the user creating
+                the evaluation.
+
+        Returns:
+            A dict containing the parsed results of the mutation.
+        """
+        return self.query(ADD_EVALUATION_MUTATION, variables={
+            'evaluation': {
+                'datasetId': dataset_id,
+                'checkpointId': checkpoint_id,
+                'createdById': created_by_id
+            }
+        })
+
+    def get_dataset(self, dataset_id):
+        """Retrieve a dataset by its id.
+
+        Args:
+            dataset_id (int or str Relay id) -- The id of the dataset
+                to fetch
+
+        Returns:
+            A dict representation of the dataset.
+        """
+        return self.query(DATASET_QUERY, variables={'id': dataset_id})
+
+    def add_dataset(self, filename, project_id, created_by_id):
+        """Add a new dataset object.
+
+        Users should probably not call this function directly. Instead,
+        consider add_dataset_from_file or add_dataset_from_pandas_df.
+
+        Args:
+            filename (str) -- The filename of the new dataset.
+            project_id (int or str Relay id) -- The id of the project to which
+                the dataset belongs.
+            created_by_id (int or str Relay id) -- The id of the user creating
+                the dataset.
+
+        Returns:
+            A dict containing the parsed results of the mutation.
+        """
+        # TODO: created_by_id should be set by the server, once auth is
+        # implemented
+        return self.query(ADD_DATASET_MUTATION, variables={
+            'dataset': {
+                'filename': filename,
+                'projectId': project_id,
+                'createdById': created_by_id
+            }
+        })
+
+    def upload_dataset(self, presigned_post, fd):
+        """Utility function to upload a file to S3.
+
+        Users should probably not call this function directly. Instead,
+        consider add_dataset_from_file or add_dataset_from_pandas_df.
+
+        Args:
+            presigned_post (str) -- A fully qualified presigned (POST) S3
+                URL, including query string.
+            fd (filelike) -- A file-like object opened for 'rb'.
+
+        Returns:
+            A requests.models.Response containing the results of the POST.
+        """
+        (s3_url, s3_querystring) = presigned_post.split('?')
+        form_data = parse_qs(s3_querystring)
+        return requests.post(s3_url, data=form_data, files={'file': fd})
+
+    def add_checkpoint(self, name, autoinspect=False, dataset_id=None):
+        """Add a new checkpoint.
+
+        Users should probably not call this function directly. Instead,
+        consider add_checkpoint_from_expectations_config.
+
+        Args:
+            name (str) -- The name of the checkpoint to create.
+
+        Kwargs:
+            autoinspect (bool) -- Flag to populate the checkpoint with
+                single-column expectations generated by autoinspection of a
+                dataset (default: false).
+            dataset_id (int or str Relay id) -- The id of the dataset to
+                autoinspect (default: None).
+
+        Raises:
+            AssertionError if autoinspect is true and dataset_id is not
+            present, or if dataset_id is present and autoinspect is false.
+
+        Returns:
+            A dict containing the parsed results of the mutation.
+        """
+        # TODO: implement nested object creation for addCheckpoint
+        if autoinspect:
+            assert dataset_id, 'Must pass a dataset_id when autoinspecting.'
+        else:
+            assert dataset_id is None, 'Do not pass a dataset_id if not ' \
+                'autoinspecting.'
+        return self.query(ADD_CHECKPOINT_MUTATION, variables={
+            'checkpoint': {
+                'name': name,
+                'slug': generate_slug(name),
+                'autoinspect': autoinspect,
+                'datasetId': dataset_id
+            }})
+
+    def get_expectation(self, expectation_id):
+        """Retrieve an expectation by its id.
+
+        Args:
+            expectation_id (int or str Relay id) -- The id of the expectation
+                to fetch
+
+        Returns:
+            A dict representation of the expectation.
+        """
+        return self.query(EXPECTATION_QUERY, variables={'id': expectation_id})
+
+    def add_expectation(
+            self,
+            checkpoint_id,
+            expectation_type,
+            expectation_kwargs,
+            created_by_id):
+        """Add a new expectation to a checkpoint.
+
+        Args:
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint
+                to which to add the new expectation.
+            expectation_type (str) -- A valid great_expectations expectation
+                type. Note: these are not yet validated by client or
+                server code, so failures will occur at evaluation time.
+            expectation_kwargs (JSON dict) -- Valid great_expectations
+                expectation kwargs, as JSON. Note: these are not yet validated
+                by client or server code, so failures will occur at evaluation
+                time.
+            created_by_id (int or str Relay id) -- The id of the user creating
+                the expectation.
+
+        Returns:
+            A dict containing the parsed results of the mutation.
+
+        Raises:
+            ValueError, if expectation_kwargs are not parseable as JSON
+        """
+        # TODO: use common code (JSON schema) to validate expectation_type and
+        # expectation_kwargs
+        try:
+            json.loads(expectation_kwargs)
+        except (TypeError, ValueError):
+            raise ValueError(
+                'Must provide valid JSON expectation_kwargs (got %s)',
+                expectation_kwargs)
+
+        return self.query(ADD_EXPECTATION_MUTATION, variables={
+            'expectation': {
+                'checkpointId': checkpoint_id,
+                'expectationType': expectation_type,
+                'expectationKwargs': expectation_kwargs,
+                'createdById': created_by_id
+            }})
+
+    def update_expectation(
+            self,
+            expectation_id,
+            expectation_type=None,
+            expectation_kwargs=None,
+            is_activated=None):
+        # TODO: use common code (JSON schema) to validate expectation_type and
+        # expectation_kwargs
+        """Update an existing expectation.
+
+        Args:
+            expectation_id (int or str Relay id) -- The id of the expectation
+                to update.
+
+        Kwargs:
+            expectation_type (str) -- A valid great_expectations expectation
+                type (default: None, no change). Note: these are not yet
+                validated by client or server code, so failures will occur at
+                evaluation time.
+            expectation_kwargs (str) -- Valid great_expectations
+                expectation kwargs, as JSON (default: None, no change).
+                If present, the existing expectation_kwargs will be
+                overwritten, so updates must include all unchanged keys from
+                the existing kwargs. Note: these are not yet validated by
+                client or server code, so failures will occur at evaluation
+                time..
+            is_activated (bool) -- Flag indicating whether an expectation
+                should be evaluated (default: None, no change).
+
+        Returns:
+            A dict containing the parsed results of the mutation.
+
+        Raises:
+            AssertionError, if none of expectation_type, expectation_kwargs,
+                or is_activated is provided
+            ValueError, if expectation_kwargs are provided but not parseable
+                as JSON
+        """
+        assert any([
+            expectation_type is not None,
+            expectation_kwargs is not None,
+            is_activated is not None]), 'Must provide expectation_type, ' \
+            'expectation_kwargs, or is_activated flag'
+        if expectation_kwargs:
+            try:
+                json.loads(expectation_kwargs)
+            except (TypeError, ValueError):
+                raise ValueError(
+                    'Must provide valid JSON expectation_kwargs (got %s)',
+                    expectation_kwargs)
+
+        variables = {
+            'expectation': {'id': expectation_id}}
+        if is_activated is not None:
+            variables['expectation']['isActivated'] = is_activated
+        if expectation_type is not None:
+            variables['expectation']['expectationType'] = expectation_type
+        if expectation_kwargs is not None:
+            variables['expectation']['expectationKwargs'] = expectation_kwargs
+
+        return self.query(UPDATE_EXPECTATION_MUTATION, variables=variables)
+
+    def get_checkpoint(self, checkpoint_id):
+        """Retrieve an existing checkpoint.
+
+        Args:
+            checkpoint_id (int or str Relay id) -- The id of the expectation
+                to retrieve
+
+        Returns:
+            A dict containing the parsed checkpoint.
+        """
+        return self.query(CHECKPOINT_QUERY, variables={'id': checkpoint_id})
+
+    def list_checkpoints(self):
+        """Retrieve all existing checkpoints.
+
+        Returns:
+            A dict containing the parsed query.
+        """
+        return self.query(LIST_CHECKPOINTS_QUERY)
+
+    def update_checkpoint(
+            self,
+            checkpoint_id,
+            autoinspection_status=None,
+            expectations=None,
+            sections=None):
+        """Update an existing checkpoint.
+
+        Args:
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint
+                to update.
+
+        Kwargs:
+            autoinspection_status (str) -- The status of autoinspection, if
+                that is to be updated (default: None, no change).
+            expectations (list) -- A list of dicts representing expectations
+                to be created & added to the checkpoint (default: None,
+                no change). Note: semantics are append.
+            sections (list) -- A list of dicts representing sections, with
+                optionally nested questions and expectations, each to be
+                created and associated (default: None, no change). Note:
+                semantics are append.
+
+        Returns:
+            A dict representing the parsed results of the mutation.
+        """
+        assert any([
+            autoinspection_status is not None,
+            expectations is not None,
+            sections is not None]), \
+            'Must update one of autoinspection_status, expectations, or ' \
+            'sections.'
+        assert not all([expectations is not None, sections is not None]), \
+            'Must not pass both expectations and sections.'
+
+        variables = {
+            'updateCheckpoint': {
+                'id': checkpoint_id
+            }
+        }
+
+        if expectations is not None:
+            variables['updateCheckpoint']['expectations'] = expectations
+        if autoinspection_status is not None:
+            variables['updateCheckpoint']['autoinspectionStatus'] = \
+                autoinspection_status
+        if sections is not None:
+            variables['updateCheckpoint']['sections'] = sections
+
+        result = self.query(UPDATE_CHECKPOINT_MUTATION, variables=variables)
+        return result
+
+    def add_checkpoint_from_expectations_config(
+            self, expectations_config, name):
+        """Create a new checkpoint from a great_expectations expectations
+            config.
+
+        Args:
+            expectations_config (dict) - An expectations config as returned by
+                great_expectations.dataset.DataSet.get_expectations_config.
+                Note that this is not validated here or on the server side --
+                failures will occur at evaluation time.
+            name (str) - The name of the checkpoint to create.
+
+        Returns:
+            A dict containing the parsed checkpoint.
+        """
+        # FIXME: right now this makes two calls, which is not ideal -- we
+        # should rework the addCheckpoint mutation to accept nested objects
+
+        checkpoint_res = self.add_checkpoint(name)
+        checkpoint_id = checkpoint_res['addCheckpoint']['checkpoint']['id']
+
+        columns = set([
+            expectation['kwargs']['column']
+            for expectation
+            in expectations_config['expectations']])
+
+        expectations_config_by_column = {column: [] for column in columns}
+
+        for expectation in expectations_config['expectations']:
+            column = expectation['kwargs']['column']
+            expectations_config_by_column[column].append(expectation)
+
+        sections = []
+
+        sequence_number = 0
+        for column in columns:
+            sections.append({
+                'name': column,
+                'slug': generate_slug(column),
+                'sequenceNumber': sequence_number,
+                'createdById': 1,  # FIXME this should be passed in
+                'questions': generate_questions(
+                    expectations_config_by_column[column])
+                # 'organizationId': 1,  # FIXME this should be passed in
+                # 'checkpointId': checkpoint_id
+            })
+            sequence_number += 1
+
+        return self.update_checkpoint(checkpoint_id, sections=sections)
+
+    def get_checkpoint_as_expectations_config(
+            self, checkpoint_id, include_inactive=False):
+        """Retrieve a checkpoint as a great_expectations expectations config.
+
+        Args:
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
+                retrieve
+            include_inactive (bool) -- If true, evaluations whose isActivated
+                flag is false will be included in the JSON config (default:
+                False).
+
+        Returns:
+            An expectations config dict as returned by
+                great_expectations.dataset.DataSet.get_expectations_config.
+        """
+        checkpoint = self.get_checkpoint(checkpoint_id)
+        if include_inactive:
+            expectations = [
+                expectation['node']
+                for expectation
+                    in checkpoint['checkpoint']['expectations']['edges']]
+        else:
+            expectations = [
+                expectation['node']
+                for expectation
+                in checkpoint['checkpoint']['expectations']['edges']
+                if expectation['node']['isActivated']]
+        expectations_config = {
+            'meta': {'great_expectations.__version__': '0.3.0'},
+            'dataset_name': None,
+            'expectations': [
+                {'expectation_type': expectation['expectationType'],
+                 'kwargs': json.loads(expectation['expectationKwargs'])}
+                for expectation
+                in expectations
+            ]}
+        return expectations_config
+
+    def add_dataset_from_file(
+            self, fd, project_id, created_by_id, filename=None):
+        """Add a new dataset from a file or file-like object.
+
+        Args:
+            fd (file-like) -- A file descriptor or file-like object to add
+                as a new dataset, opened as 'rb'.
+            project_id (int or str Relay id) -- The id of the project to which
+                the dataset belongs.
+            created_by_id (int or str Relay id) -- The id of the user creating
+                the dataset.
+
+        Kwargs:
+            filename (str) -- The filename to associate with the dataset
+                (default: None, the name attribute of the fd argument will be
+                used). Note that in the case of file-like objects without
+                names (e.g. py2 StringIO.StringIO), this must be set.
+
+        Returns:
+            A dict representation of the dataset.
+
+        Raises:
+            AttributeError, if filename is not set and fd does not have a
+                name attribute.
+        """
+        dataset = self.add_dataset(
+            filename or fd.name, project_id, created_by_id)
+
+        presigned_post = dataset['addDataset']['dataset']['s3Url']
+
+        self.upload_dataset(presigned_post, fd)
+
+        return self.get_dataset(dataset['addDataset']['dataset']['id'])
+
+    def add_dataset_from_pandas_df(
+            self, pandas_df, project_id, created_by_id, filename=None):
+        """Add a new dataset from a pandas.DataFrame.
+
+        Args:
+            pandas_df (pandas.DataFrame) -- The data frame to add.
+            project_id (int or str Relay id) -- The id of the project to which
+                the dataset belongs.
+            created_by_id (int or str Relay id) -- The id of the user creating
+                the dataset.
+
+        Kwargs:
+            filename (str) -- The filename to associate with the dataset
+                (default: None, the name attribute of the pandas_df argument
+                will be used).
+
+        Returns:
+            A dict representation of the dataset.
+
+        Raises:
+            AttributeError, if filename is not set and pandas_df does not have
+                a name attribute.
+        """
+        with tempfile.TemporaryFile(mode='w+') as fd:
+            pandas_df.to_csv(fd, encoding='UTF_8')
+            fd.seek(0)
+            return self.add_dataset_from_file(
+                fd,
+                project_id,
+                created_by_id,
+                filename=(filename or pandas_df.name))
+
+    def evaluate_checkpoint_on_pandas_df(
+            self,
+            checkpoint_id,
+            created_by_id,
+            pandas_df,
+            filename=None):
+        """Evaluate a checkpoint on a pandas.DataFrame.
+
+        Args:
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
+                evaluate.
+            created_by_id (int or str Relay id) -- The id of the user creating
+                the evaluation.
+            pandas_df (pandas.DataFrame) -- The data frame on which to
+                evaluate the checkpoint.
+
+        Kwargs:
+            filename (str) -- The filename to associate with the dataset
+                (default: None, the name attribute of the pandas_df argument
+                will be used).
+
+        Returns:
+            A dict representation of the evaluation.
+        """
+        checkpoint = self.get_checkpoint(checkpoint_id)
+        project_id = checkpoint['checkpoint']['project']['id']
+        checkpoint_id = checkpoint['checkpoint']['id']
+        dataset = self.add_dataset_from_pandas_df(
+            pandas_df,
+            project_id,
+            created_by_id,
+            filename=filename)
+        return self.add_evaluation(
+            dataset['dataset']['id'], checkpoint_id, created_by_id)
+
+    def evaluate_checkpoint_on_file(
+            self,
+            checkpoint_id,
+            created_by_id,
+            fd,
+            filename=None):
+        """Evaluate a checkpoint on a file.
+
+        Args:
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
+                evaluate.
+            created_by_id (int or str Relay id) -- The id of the user creating
+                the evaluation.
+            fd (file-like) -- A file descriptor or file-like object to
+                evaluate, opened as 'rb'.
+
+        Kwargs:
+            filename (str) -- The filename to associate with the dataset
+                (default: None, the name attribute of the pandas_df argument
+                will be used).
+
+        Returns:
+            A dict representation of the evaluation.
+        """
+        checkpoint = self.get_checkpoint(checkpoint_id)
+        project_id = checkpoint['checkpoint']['project']['id']
+        checkpoint_id = checkpoint['checkpoint']['id']
+        dataset = self.add_dataset_from_file(
+            fd,
+            project_id,
+            created_by_id,
+            filename=filename)
+        return self.add_evaluation(
+            dataset['dataset']['id'], checkpoint_id, created_by_id)
+
+    def get_checkpoint_as_json_string(self, checkpoint_id, include_inactive=False):
+        """Retrieve a JSON representation of a checkpoint.
+
+        Args:
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
+                retrieve
+            include_inactive (bool) -- If true, evaluations whose isActivated
+                flag is false will be included in the JSON config (default:
+                False)
+
+        Returns:
+            A JSON representation of the checkpoint.
+        """
+        checkpoint = self.get_checkpoint(checkpoint_id)
+        if include_inactive:
+            expectations = [
+                expectation['node']
+                for expectation
+                in checkpoint['checkpoint']['expectations']['edges']]
+        else:
+            expectations = [
+                expectation['node']
+                for expectation
+                in checkpoint['checkpoint']['expectations']['edges']
+                if expectation['node']['isActivated']]
+
+        return json.dumps(
+            {'expectations': [
+                {
+                    'expectation_type': expectation['expectationType'],
+                    'kwargs': json.loads(expectation['expectationKwargs'])}
+                for expectation in expectations]},
+            indent=2,
+            separators=(',', ': '),
+            sort_keys=True)
