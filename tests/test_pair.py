@@ -17,7 +17,10 @@ from cooper_pair.version import __version__
 DQM_GRAPHQL_URL = os.getenv('DQM_GRAPHQL_URL', 'http://0.0.0.0:3010/graphql')
 
 
-pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
+pair = CooperPair(
+    graphql_endpoint=DQM_GRAPHQL_URL,
+    email='machine@superconductivehealth.com',
+    password='foobar')
 
 SAMPLE_EXPECTATIONS_CONFIG = {
     'dataset_name': None,
@@ -37,6 +40,40 @@ def test_version():
 def test_init():
     assert pair.client
     assert pair.transport
+
+
+def test_init_client_without_credentials():
+    with pytest.warns(UserWarning):
+        assert CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
+
+
+def test_login_success():
+    with pytest.warns(UserWarning):
+        pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
+    assert pair.login(
+        email='machine@superconductivehealth.com',
+        password='foobar')
+
+
+def test_login_failure():
+    with pytest.warns(UserWarning):
+        pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
+    with pytest.warns(UserWarning):
+        assert not pair.login(
+            email='sdfjkhkdfsh',
+            password='foobar')
+    with pytest.warns(UserWarning):
+        assert not pair.login(
+            email='machine@superconductivehealth.com')
+    with pytest.warns(UserWarning):
+        assert not pair.login(
+            password='foobar')
+
+def test_unauthenticated_query():
+    with pytest.warns(UserWarning):
+        pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
+    with pytest.warns(UserWarning):
+        pair.add_evaluation(dataset_id=1, checkpoint_id=1, created_by_id=1)
 
 
 def test_bad_query():

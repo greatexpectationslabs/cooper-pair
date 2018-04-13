@@ -5,14 +5,20 @@ GraphQL API."""
 import json
 import os
 import tempfile
+import time
 import traceback
 try:  # pragma: nocover
     from urllib.parse import parse_qs
-except ImportError:
+except ImportError:  # pragma: nocover
     from urlparse import parse_qs
+import warnings
+
 import requests
+
 from gql import gql, Client
+from gql.client import RetryError
 from gql.transport.requests import RequestsHTTPTransport
+from graphql import (parse, introspection_query, build_client_schema)
 
 
 TIMEOUT = 10
@@ -20,6 +26,14 @@ TIMEOUT = 10
 MAX_RETRIES = 10
 
 DQM_GRAPHQL_URL = os.environ.get('DQM_GRAPHQL_URL')
+
+LOGIN_MUTATION = gql("""
+  mutation loginMutation($input: LoginInput!) {
+    login(input: $input) {
+      token
+    }
+  }
+""")
 
 ADD_EVALUATION_MUTATION = gql("""
   mutation addEvaluationMutation($evaluation: AddEvaluationInput!) {
@@ -440,13 +454,96 @@ UPDATE_CHECKPOINT_MUTATION = gql("""
   }
 """)
 
+LIST_CONFIGURED_NOTIFICATIONS_QUERY = gql("""
+{
+    allConfiguredNotifications {
+        edges {
+            cursor
+            node {
+                id
+                notificationType
+                value
+            }
+        }
+    }
+}
+""")
+
+UPDATE_EVALUATION_MUTATION = gql("""
+mutation($updateEvaluation: UpdateEvaluationInput!) {
+    updateEvaluation(input: $updateEvaluation) {
+        evaluation {
+            id
+            datasetId
+            checkpointId
+            createdById
+            createdBy {
+                id
+            }
+            dataset {
+                id
+                filename
+            }
+            organizationId
+            organization {
+                id
+            }
+            checkpoint {
+                id
+                name
+            }
+            results {
+                edges {
+                    cursor
+                    node {
+                        id
+                        success
+                        summaryObj
+                        expectationType
+                        expectationKwargs
+                        raisedException
+                        exceptionTraceback
+                        evaluationId
+                    }
+                }
+            }
+            updatedAt
+        }
+    }
+}
+""")
+
+
+def make_gql_client(transport=None, schema=None, retries=MAX_RETRIES,
+                    timeout=TIMEOUT):
+    client = None
+    counter = 0
+    while client is None and counter < retries:
+        try:
+            client = Client(
+                transport=transport,
+                fetch_schema_from_transport=(schema is None),
+                schema=schema,
+                retries=retries)
+        except (requests.ConnectionError, RetryError):
+            warnings.warn('CooperPair failed to connect to allotrope...')
+        counter += 1
+        time.sleep(timeout)
+
+    if client is None:
+        raise Exception(
+            'CooperPair failed to connect to '
+            'allotrope {} times.'.format(retries))
+
+    return client
+
 
 def generate_slug(name):
     """Utility function to generate snake-case-slugs.
 
     Args:
         name (str) -- the name to convert to a slug
-    
+
     Returns:
         A string slug.
     """
@@ -487,8 +584,13 @@ def generate_questions(expectations):
 
 class CooperPair(object):
     """Entrypoint to the API."""
+
+    _client = None
+
     def __init__(
             self,
+            email=None,
+            password=None,
             graphql_endpoint=DQM_GRAPHQL_URL,
             timeout=TIMEOUT,
             max_retries=MAX_RETRIES):
@@ -514,23 +616,63 @@ class CooperPair(object):
             'CooperPair.init: graphql_endpoint was None and ' \
             'DQM_GRAPHQL_URL not set.'
 
+        if not(email and password):
+            warnings.warn(
+                'CooperPair must be initialized with email and password '
+                'in order to authenticate against the GraphQL api.')
+
+        self.email = email
+        self.max_retries = max_retries
+        self.password = password
+        self.timeout = timeout
+        self.token = None
         self.transport = RequestsHTTPTransport(
             url=graphql_endpoint, use_json=True, timeout=timeout)
 
-        try:
-            self.client = Client(
+    @property
+    def client(self):
+        if self._client is None:
+            self._client = make_gql_client(
                 transport=self.transport,
-                fetch_schema_from_transport=True,
-                retries=MAX_RETRIES)
-        except requests.ConnectionError:  # pragma: nocover
-            raise Exception(
-                'Sorry! Since cooper_pair introspects the GraphQL schema '
-                'from the server, you must have connectivity in order to '
-                'initialize an instance of CooperPair! Double check that '
-                'cooper is running as expected at {}. Original traceback: '
-                '{}'.format(graphql_endpoint, traceback.format_exc()))
+                retries=self.max_retries,
+                timeout=self.timeout)
+            # FIXME(mattgiles): login needs to be thought through
+            self.login()
+        return self._client
 
-    def query(self, query, variables=None):
+    def login(self, email=None, password=None):
+        if self.email is None or self.password is None:
+            warnings.warn(
+                'Instance credentials are not set. You must '
+                'set instance credentials (self.email and self.password) '
+                'in order to automatically authenticate against '
+                'the GraphQL api.')
+
+        email = email or self.email
+        password = password or self.password
+        if email is None or password is None:
+            warnings.warn('Must provide email and password to login.')
+            return False
+        login_result = self.client.execute(
+            LOGIN_MUTATION, variable_values={
+                'input': {
+                    'email': email,
+                    'password': password
+                }
+            })
+        token = login_result['login']['token']
+        if token:
+            self.token = token
+            self.transport.headers = dict(
+                self.transport.headers or {}, **{'X-Fullerene-Token': token})
+            return True
+        else:
+            warnings.warn(
+                "Couldn't log in with email and password provided. "
+                "Please try again")
+            return False
+
+    def query(self, query, variables=None, unauthenticated=False):
         """Workhorse to execute queries.
 
         Args:
@@ -540,12 +682,18 @@ class CooperPair(object):
 
         Kwargs:
             variables (dict) -- A Python dict containing variables to be
-                passed along with the GraphQL query (default: None, no 
+                passed along with the GraphQL query (default: None, no
                 variables will be passed).
 
         Returns:
             A dict containing the parsed results of the query.
         """
+        self.login()
+        if not unauthenticated:
+            if not self.token:
+                warnings.warn(
+                    'Client not authenticated. Expect queries to fail. '
+                    'Please call CooperPair.login(email, password).')
         return self.client.execute(query, variable_values=variables)
 
     def add_evaluation(self, dataset_id, checkpoint_id, created_by_id):
@@ -569,6 +717,31 @@ class CooperPair(object):
                 'createdById': created_by_id
             }
         })
+
+    def update_evaluation(self, evaluation_id, status=None, results=None):
+        """Update an evaluation.
+
+        Args:
+            evaluation_id (int or str Relay id) -- The id of the evaluation
+                to update
+            status (str) -- The status of the evaluation, if any
+                (default: None)
+            results (list of dicts) -- The results, if any (default: None)
+
+        Returns:
+            A dict containing the parsed results of the mutation.
+        """
+        variables = {
+            'updateEvaluation': {
+                'id': evaluation_id
+            }
+        }
+        if results is not None:
+            variables['updateEvaluation']['results'] = results
+        if status is not None:
+            variables['updateEvaluation']['status'] = status
+
+        return self.query(UPDATE_EVALUATION_MUTATION, variables=variables)
 
     def get_dataset(self, dataset_id):
         """Retrieve a dataset by its id.
@@ -923,7 +1096,7 @@ class CooperPair(object):
             expectations = [
                 expectation['node']
                 for expectation
-                    in checkpoint['checkpoint']['expectations']['edges']]
+                in checkpoint['checkpoint']['expectations']['edges']]
         else:
             expectations = [
                 expectation['node']
@@ -1077,7 +1250,8 @@ class CooperPair(object):
         return self.add_evaluation(
             dataset['dataset']['id'], checkpoint_id, created_by_id)
 
-    def get_checkpoint_as_json_string(self, checkpoint_id, include_inactive=False):
+    def get_checkpoint_as_json_string(
+            self, checkpoint_id, include_inactive=False):
         """Retrieve a JSON representation of a checkpoint.
 
         Args:
@@ -1112,3 +1286,11 @@ class CooperPair(object):
             indent=2,
             separators=(',', ': '),
             sort_keys=True)
+
+    def list_configured_notifications(self):
+        """Retrieve all existing configured notifications.
+
+        Returns:
+            A dict containing the parsed query.
+        """
+        return self.query(LIST_CONFIGURED_NOTIFICATIONS_QUERY)
