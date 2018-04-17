@@ -341,3 +341,20 @@ class TestSomeStuff(unittest.TestCase):
                 }
             }
         )
+
+    def test_update_evaluation(self):
+        res = pair.add_evaluation(dataset_id=1, checkpoint_id=1, created_by_id=1)
+        # print(json.dumps(res, indent=2))
+
+        res2 = pair.update_evaluation(
+            res["addEvaluation"]["evaluation"]["id"],
+            # results={},
+            status="pending"
+        )
+        # print(json.dumps(res2, indent=2))
+        self.assertEqual(
+            res2["updateEvaluation"]["evaluation"]["status"],
+            "pending"
+        )
+
+        #FIXME: Test a mutation with `results`
