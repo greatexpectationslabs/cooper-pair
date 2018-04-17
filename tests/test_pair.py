@@ -118,7 +118,8 @@ def test_add_checkpoint():
 
 def test_add_expectation():
     with pytest.raises(ValueError):
-        pair.add_expectation(1, 'expect_column_to_exist', {}, 1)
+        pair.add_expectation(1, 'expect_column_to_exist', {})
+
     assert pair.add_expectation(
         checkpoint_id=1,
         expectation_type='expect_column_to_exist',
@@ -265,26 +266,26 @@ def test_add_and_get_checkpoint_from_expectations_config_and_as_json():
 
 def test_add_dataset_from_file():
     with pytest.raises(AttributeError):
-        pair.add_dataset_from_file(StringIO(), 1, 1)
+        pair.add_dataset_from_file(StringIO(), 1)
 
     pwd = os.getcwd()
     os.chdir(os.path.dirname(__file__))
     try:
         with open('etp_participant_data.csv', 'rb') as fd:
-            assert pair.add_dataset_from_file(fd, 1, 1)
+            assert pair.add_dataset_from_file(fd, 1)
     finally:
         os.chdir(pwd)
 
 
 def test_evaluate_checkpoint_on_file():
     with pytest.raises(AttributeError):
-        pair.evaluate_checkpoint_on_file(2, 1, StringIO())
+        pair.evaluate_checkpoint_on_file(2, StringIO())
 
     pwd = os.getcwd()
     os.chdir(os.path.dirname(__file__))
     try:
         with open('etp_participant_data.csv', 'rb') as fd:
-            assert pair.evaluate_checkpoint_on_file(1, 1, fd)
+            assert pair.evaluate_checkpoint_on_file(1, fd)
     finally:
         os.chdir(pwd)
 
@@ -295,9 +296,9 @@ def test_add_dataset_from_pandas_df():
     try:
         pandas_df = pandas.read_csv('etp_participant_data.csv')
         with pytest.raises(AttributeError):
-            pair.add_dataset_from_pandas_df(pandas_df, 1, 1)
+            pair.add_dataset_from_pandas_df(pandas_df, 1)
         assert pair.add_dataset_from_pandas_df(
-            pandas_df, 1, 1, filename='etp_participant_data')
+            pandas_df, 1, filename='etp_participant_data')
     finally:
         os.chdir(pwd)
 
@@ -307,10 +308,10 @@ def test_evaluate_checkpoint_on_pandas_df():
     try:
         pandas_df = pandas.read_csv('etp_participant_data.csv')
         with pytest.raises(AttributeError):
-            pair.evaluate_checkpoint_on_pandas_df(2, 1, pandas_df)
+            pair.evaluate_checkpoint_on_pandas_df(2, pandas_df)
 
         pandas_df.name = 'foo'
-        assert pair.evaluate_checkpoint_on_pandas_df(1, 1, pandas_df)
+        assert pair.evaluate_checkpoint_on_pandas_df(1, pandas_df)
     finally:
         os.chdir(pwd)
 
