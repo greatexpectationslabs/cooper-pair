@@ -568,7 +568,7 @@ def generate_questions(expectations):
     # TODO: sort by the ordinary sort order for columns here
     for expectation in expectations:
         munged = {
-            'createdById': 1,  # TODO: this should be passed in
+            # 'createdById': 1,  # TODO: this should be passed in
             'expectationType': expectation['expectation_type'],
             'expectationKwargs': json.dumps(expectation['kwargs']),
             'isActivated': expectation.get('isActivated') or True
