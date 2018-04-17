@@ -37,6 +37,7 @@ def test_version():
     assert __version__
 
 
+#FIXME: This test runs very slowly
 def test_init():
     assert pair.client
     assert pair.transport
@@ -46,7 +47,7 @@ def test_init_client_without_credentials():
     with pytest.warns(UserWarning):
         assert CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
 
-
+#FIXME: This test runs very slowly
 def test_login_success():
     with pytest.warns(UserWarning):
         pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
@@ -54,7 +55,7 @@ def test_login_success():
         email='machine@superconductivehealth.com',
         password='foobar')
 
-
+#FIXME: This test runs very slowly
 def test_login_failure():
     with pytest.warns(UserWarning):
         pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
@@ -69,6 +70,7 @@ def test_login_failure():
         assert not pair.login(
             password='foobar')
 
+#FIXME: This test runs very slowly
 def test_unauthenticated_query():
     with pytest.warns(UserWarning):
         pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
