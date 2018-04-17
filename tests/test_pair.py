@@ -39,8 +39,9 @@ def test_version():
 
 #FIXME: This test runs very slowly
 def test_init():
-    assert pair.client
+    assert pair.client #This is the slow line.
     assert pair.transport
+    pass
 
 
 def test_init_client_without_credentials():
@@ -178,15 +179,16 @@ def test_update_checkpoint():
     checkpoint = pair.get_checkpoint(new_checkpoint_id)
     assert checkpoint['checkpoint']['autoinspectionStatus'] == 'pending'
 
+    #FIXME: Passing createdById should raise an exception in allotrope.
     sections = [{
         'name': 'my section',
         'slug': 'my-section',
         'sequenceNumber': 1,
-        'createdById': 1,
+        # 'createdById': 1,
         'questions': [{
             'questionObj': json.dumps({'title': 'Placeholder'}),
             'expectation': {
-                'createdById': 1,
+                # 'createdById': 1,
                 'expectationType': 'fuar',
                 'expectationKwargs': json.dumps({})
             },
@@ -202,8 +204,9 @@ def test_update_checkpoint():
     assert sections['edges'][0]['node']['questions']
     assert sections['edges'][0]['node']['questions']['edges'][0]['node']['expectation']['id']
 
+    #FIXME: Passing createdById should raise an exception in allotrope.
     expectations = [{
-        'createdById': 1,
+        # 'createdById': 1,
         'expectationType': 'boop',
         'expectationKwargs': "{}"
     }]
