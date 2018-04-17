@@ -1,10 +1,13 @@
 # pylint: disable=C0103, C0111, E0401
 
+#FIXME: These tests require a freshly seeded instance of allotrope.
+
 import json
 import os
 
 import pandas
 import pytest
+import unittest
 
 try:
     from io import BytesIO as StringIO
@@ -15,7 +18,6 @@ from cooper_pair import CooperPair
 from cooper_pair.version import __version__
 
 DQM_GRAPHQL_URL = os.getenv('DQM_GRAPHQL_URL', 'http://0.0.0.0:3010/graphql')
-
 
 pair = CooperPair(
     graphql_endpoint=DQM_GRAPHQL_URL,
@@ -311,8 +313,31 @@ def test_evaluate_checkpoint_on_pandas_df():
     finally:
         os.chdir(pwd)
 
-
 def test_list_checkpoints():
     res = pair.list_checkpoints()
     assert res
     assert len(res.get('allCheckpoints', [])) > 0
+
+class TestSomeStuff(unittest.TestCase):
+    #Declaring a real TestCase class so that we can use unittest affordances.
+
+    def test_list_configured_notifications(self):
+        res = pair.list_configured_notifications()
+        print(json.dumps(res, indent=2))
+        self.assertEqual(
+            res,
+            {
+                "allConfiguredNotifications": {
+                    "edges": [
+                    {
+                        "cursor": "YXJyYXljb25uZWN0aW9uOjA=",
+                        "node": {
+                        "id": "Q29uZmlndXJlZE5vdGlmaWNhdGlvbjox",
+                        "notificationType": 0,
+                        "value": "https://hooks.slack.com/services/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"
+                        }
+                    }
+                    ]
+                }
+            }
+        )
