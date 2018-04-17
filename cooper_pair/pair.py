@@ -21,7 +21,7 @@ from gql.transport.requests import RequestsHTTPTransport
 from graphql import (parse, introspection_query, build_client_schema)
 
 
-TIMEOUT = .5
+TIMEOUT = 2
 
 MAX_RETRIES = 10
 
@@ -697,7 +697,7 @@ class CooperPair(object):
                     'Please call CooperPair.login(email, password).')
         return self.client.execute(query, variable_values=variables)
 
-    def add_evaluation(self, dataset_id, checkpoint_id, created_by_id):
+    def add_evaluation(self, dataset_id, checkpoint_id):
         """Add a new evaluation.
 
         Args:
@@ -705,8 +705,6 @@ class CooperPair(object):
                 to run the evaluation.
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the evaluation.
 
         Returns:
             A dict containing the parsed results of the mutation.
@@ -715,7 +713,6 @@ class CooperPair(object):
             'evaluation': {
                 'datasetId': dataset_id,
                 'checkpointId': checkpoint_id,
-                'createdById': created_by_id
             }
         })
 
@@ -756,7 +753,7 @@ class CooperPair(object):
         """
         return self.query(DATASET_QUERY, variables={'id': dataset_id})
 
-    def add_dataset(self, filename, project_id, created_by_id):
+    def add_dataset(self, filename, project_id):
         """Add a new dataset object.
 
         Users should probably not call this function directly. Instead,
@@ -766,19 +763,14 @@ class CooperPair(object):
             filename (str) -- The filename of the new dataset.
             project_id (int or str Relay id) -- The id of the project to which
                 the dataset belongs.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the dataset.
 
         Returns:
             A dict containing the parsed results of the mutation.
         """
-        # TODO: created_by_id should be set by the server, once auth is
-        # implemented
         return self.query(ADD_DATASET_MUTATION, variables={
             'dataset': {
                 'filename': filename,
                 'projectId': project_id,
-                'createdById': created_by_id
             }
         })
 
@@ -854,7 +846,7 @@ class CooperPair(object):
             checkpoint_id,
             expectation_type,
             expectation_kwargs,
-            created_by_id):
+        ):
         """Add a new expectation to a checkpoint.
 
         Args:
@@ -867,8 +859,6 @@ class CooperPair(object):
                 expectation kwargs, as JSON. Note: these are not yet validated
                 by client or server code, so failures will occur at evaluation
                 time.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the expectation.
 
         Returns:
             A dict containing the parsed results of the mutation.
@@ -890,7 +880,6 @@ class CooperPair(object):
                 'checkpointId': checkpoint_id,
                 'expectationType': expectation_type,
                 'expectationKwargs': expectation_kwargs,
-                'createdById': created_by_id
             }})
 
     def update_expectation(
@@ -1067,7 +1056,7 @@ class CooperPair(object):
                 'name': column,
                 'slug': generate_slug(column),
                 'sequenceNumber': sequence_number,
-                'createdById': 1,  # FIXME this should be passed in
+                # 'createdById': 1,  # FIXME this should be passed in
                 'questions': generate_questions(
                     expectations_config_by_column[column])
                 # 'organizationId': 1,  # FIXME this should be passed in
@@ -1116,7 +1105,7 @@ class CooperPair(object):
         return expectations_config
 
     def add_dataset_from_file(
-            self, fd, project_id, created_by_id, filename=None):
+            self, fd, project_id, filename=None):
         """Add a new dataset from a file or file-like object.
 
         Args:
@@ -1124,8 +1113,6 @@ class CooperPair(object):
                 as a new dataset, opened as 'rb'.
             project_id (int or str Relay id) -- The id of the project to which
                 the dataset belongs.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the dataset.
 
         Kwargs:
             filename (str) -- The filename to associate with the dataset
@@ -1141,7 +1128,9 @@ class CooperPair(object):
                 name attribute.
         """
         dataset = self.add_dataset(
-            filename or fd.name, project_id, created_by_id)
+            filename or fd.name,
+            project_id
+        )
 
         presigned_post = dataset['addDataset']['dataset']['s3Url']
 
@@ -1150,15 +1139,13 @@ class CooperPair(object):
         return self.get_dataset(dataset['addDataset']['dataset']['id'])
 
     def add_dataset_from_pandas_df(
-            self, pandas_df, project_id, created_by_id, filename=None):
+            self, pandas_df, project_id, filename=None):
         """Add a new dataset from a pandas.DataFrame.
 
         Args:
             pandas_df (pandas.DataFrame) -- The data frame to add.
             project_id (int or str Relay id) -- The id of the project to which
                 the dataset belongs.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the dataset.
 
         Kwargs:
             filename (str) -- The filename to associate with the dataset
@@ -1178,13 +1165,12 @@ class CooperPair(object):
             return self.add_dataset_from_file(
                 fd,
                 project_id,
-                created_by_id,
-                filename=(filename or pandas_df.name))
+                filename=(filename or pandas_df.name)
+            )
 
     def evaluate_checkpoint_on_pandas_df(
             self,
             checkpoint_id,
-            created_by_id,
             pandas_df,
             filename=None):
         """Evaluate a checkpoint on a pandas.DataFrame.
@@ -1192,8 +1178,6 @@ class CooperPair(object):
         Args:
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the evaluation.
             pandas_df (pandas.DataFrame) -- The data frame on which to
                 evaluate the checkpoint.
 
@@ -1211,24 +1195,23 @@ class CooperPair(object):
         dataset = self.add_dataset_from_pandas_df(
             pandas_df,
             project_id,
-            created_by_id,
             filename=filename)
         return self.add_evaluation(
-            dataset['dataset']['id'], checkpoint_id, created_by_id)
+            dataset['dataset']['id'],
+            checkpoint_id
+        )
 
     def evaluate_checkpoint_on_file(
             self,
             checkpoint_id,
-            created_by_id,
             fd,
-            filename=None):
+            filename=None
+        ):
         """Evaluate a checkpoint on a file.
 
         Args:
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the evaluation.
             fd (file-like) -- A file descriptor or file-like object to
                 evaluate, opened as 'rb'.
 
@@ -1246,10 +1229,11 @@ class CooperPair(object):
         dataset = self.add_dataset_from_file(
             fd,
             project_id,
-            created_by_id,
             filename=filename)
         return self.add_evaluation(
-            dataset['dataset']['id'], checkpoint_id, created_by_id)
+            dataset['dataset']['id'],
+            checkpoint_id
+        )
 
     def get_checkpoint_as_json_string(
             self, checkpoint_id, include_inactive=False):

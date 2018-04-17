@@ -78,7 +78,7 @@ def test_unauthenticated_query():
     with pytest.warns(UserWarning):
         pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
     with pytest.warns(UserWarning):
-        pair.add_evaluation(dataset_id=1, checkpoint_id=1, created_by_id=1)
+        pair.add_evaluation(dataset_id=1, checkpoint_id=1)
 
 
 def test_bad_query():
@@ -87,17 +87,18 @@ def test_bad_query():
 
 
 def test_add_evaluation():
-    assert pair.add_evaluation(dataset_id=1, checkpoint_id=1, created_by_id=1)
+    assert pair.add_evaluation(dataset_id=1, checkpoint_id=1)
 
 
 def test_add_dataset():
     assert pair.add_dataset(
-        filename="foobar.csv", project_id=1, created_by_id=1)
+        filename="foobar.csv", project_id=1)
 
 
 def test_upload_dataset():
     res = pair.add_dataset(
-        filename="foobar.csv", project_id=1, created_by_id=1)
+        filename="foobar.csv", project_id=1
+    )
     s3_url = res['addDataset']['dataset']['s3Url']
     with open(
             os.path.join(
@@ -122,7 +123,7 @@ def test_add_expectation():
         checkpoint_id=1,
         expectation_type='expect_column_to_exist',
         expectation_kwargs='{}',
-        created_by_id=1)
+    )
 
 
 def test_get_expectation():
@@ -343,7 +344,7 @@ class TestSomeStuff(unittest.TestCase):
         )
 
     def test_update_evaluation(self):
-        res = pair.add_evaluation(dataset_id=1, checkpoint_id=1, created_by_id=1)
+        res = pair.add_evaluation(dataset_id=1, checkpoint_id=1)
         # print(json.dumps(res, indent=2))
 
         res2 = pair.update_evaluation(

@@ -25,7 +25,9 @@ From a file:
 
     with open(filename, 'rb') as fd:
         dataset = pair.add_dataset_from_file(
-            fd, project_id=project_id, created_by_id=created_by_id)
+            fd,
+            project_id=project_id
+        )
     dataset_id = dataset['dataset']['id']
 
 ### Creating a new checkpoint by autoinspection
