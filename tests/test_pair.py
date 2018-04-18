@@ -287,7 +287,29 @@ def test_evaluate_checkpoint_on_file():
     os.chdir(os.path.dirname(__file__))
     try:
         with open('etp_participant_data.csv', 'rb') as fd:
-            assert pair.evaluate_checkpoint_on_file(1, fd)
+            response = pair.evaluate_checkpoint_on_file(1, fd)
+            print(json.dumps(response, indent=2))
+            assert response
+            assert response["addEvaluation"]["evaluation"]["status"] == "created"
+
+            #Give rgmelins a chance to pick up the job
+            time.sleep(.5)
+
+            response_2 = pair.query("""
+                    query evaluationQuery($id: ID!) {
+                        evaluation(id: $id) {
+                            id,
+                            status
+                        }
+                    }
+                """,
+                variables={
+                    'id' : response["addEvaluation"]["evaluation"]["id"]
+            })
+            print(json.dumps(response_2, indent=2))
+            assert response_2["evaluation"]["status"] in ["pending", "complete"]
+
+
     finally:
         os.chdir(pwd)
 
