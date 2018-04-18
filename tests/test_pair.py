@@ -16,6 +16,7 @@ except ImportError:
 
 from cooper_pair import CooperPair
 from cooper_pair.version import __version__
+from graphql.error.syntax_error import GraphQLSyntaxError
 
 DQM_GRAPHQL_URL = os.getenv('DQM_GRAPHQL_URL', 'http://0.0.0.0:3010/graphql')
 
@@ -82,7 +83,7 @@ def test_unauthenticated_query():
 
 
 def test_bad_query():
-    with pytest.raises(AssertionError):
+    with pytest.raises(GraphQLSyntaxError):
         pair.query('foobar')
 
 
