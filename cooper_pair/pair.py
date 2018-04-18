@@ -27,166 +27,6 @@ MAX_RETRIES = 10
 
 DQM_GRAPHQL_URL = os.environ.get('DQM_GRAPHQL_URL')
 
-LOGIN_MUTATION = """
-  mutation loginMutation($input: LoginInput!) {
-    login(input: $input) {
-      token
-    }
-  }
-"""
-
-ADD_EVALUATION_MUTATION = """
-  mutation addEvaluationMutation($evaluation: AddEvaluationInput!) {
-    addEvaluation(input: $evaluation) {
-      evaluation {
-        id
-        dataset {
-            id
-        }
-        checkpoint {
-            id
-        }
-        createdBy {
-            id
-        }
-        organization {
-            id
-        }
-        results {
-            pageInfo {
-                hasNextPage
-                hasPreviousPage
-                startCursor
-                endCursor
-            }
-            edges {
-                cursor
-                node {
-                    id
-                }
-            }
-        }
-        status
-      }
-    }
-  }
-"""
-
-ADD_DATASET_MUTATION = """
-  mutation addDatasetMutation($dataset: AddDatasetInput!) {
-    addDataset(input: $dataset) {
-      dataset {
-        id
-        project {
-          id
-        }
-        createdBy {
-          id
-        }
-        filename
-        s3Url
-        s3Key
-        organization {
-          id
-        }
-      }
-    }
-  }
-"""
-
-ADD_CHECKPOINT_MUTATION = """
-  mutation addCheckpointMutation($checkpoint: AddCheckpointInput!) {
-    addCheckpoint(input: $checkpoint) {
-      checkpoint {
-        id
-        name
-        slug
-        autoinspectionStatus
-        project {
-          id
-        }
-        createdBy {
-          id
-        }
-        expectations {
-            pageInfo {
-                hasNextPage
-                hasPreviousPage
-                startCursor
-                endCursor
-            }
-            edges {
-                cursor
-                node {
-                    id
-                }
-            }
-        }
-        sections {
-            pageInfo {
-                hasNextPage
-                hasPreviousPage
-                startCursor
-                endCursor
-            }
-            edges {
-                cursor
-                node {
-                    id
-                }
-            }
-        }
-        organization {
-          id
-        }
-        notifyOn
-      }
-    }
-  }
-"""
-
-EXPECTATION_QUERY = """
-  query expectationQuery($id: ID!) {
-    expectation(id: $id) {
-        id
-        expectationType
-        expectationKwargs
-        isActivated
-        createdBy {
-            id
-        }
-        organization {
-            id
-        }
-        question {
-            id
-        }
-        checkpoint {
-            id
-        }
-    }
-  }
-"""
-
-DATASET_QUERY = """
-  query datasetQuery($id: ID!) {
-    dataset(id: $id) {
-        id
-        project {
-            id
-        }
-        createdBy {
-            id
-        }
-        filename
-        s3Key
-        organization {
-            id
-        }
-    }
-  }
-"""
-
 ADD_EXPECTATION_MUTATION = """
   mutation addExpectationMutation($expectation: AddExpectationInput!) {
     addExpectation(input: $expectation) {
@@ -655,7 +495,13 @@ class CooperPair(object):
             warnings.warn('Must provide email and password to login.')
             return False
         login_result = self.client.execute(
-            gql(LOGIN_MUTATION),
+            gql("""
+                mutation loginMutation($input: LoginInput!) {
+                    login(input: $input) {
+                    token
+                    }
+                }
+            """),
             variable_values={
                 'input': {
                     'email': email,
@@ -712,7 +558,43 @@ class CooperPair(object):
         Returns:
             A dict containing the parsed results of the mutation.
         """
-        return self.query(ADD_EVALUATION_MUTATION, variables={
+        return self.query("""
+            mutation addEvaluationMutation($evaluation: AddEvaluationInput!) {
+                addEvaluation(input: $evaluation) {
+                evaluation {
+                    id
+                    dataset {
+                        id
+                    }
+                    checkpoint {
+                        id
+                    }
+                    createdBy {
+                        id
+                    }
+                    organization {
+                        id
+                    }
+                    results {
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                        edges {
+                            cursor
+                            node {
+                                id
+                            }
+                        }
+                    }
+                    status
+                }
+                }
+            }
+        """,
+        variables={
             'evaluation': {
                 'datasetId': dataset_id,
                 'checkpointId': checkpoint_id,
@@ -754,7 +636,26 @@ class CooperPair(object):
         Returns:
             A dict representation of the dataset.
         """
-        return self.query(DATASET_QUERY, variables={'id': dataset_id})
+        return self.query("""
+            query datasetQuery($id: ID!) {
+                dataset(id: $id) {
+                    id
+                    project {
+                        id
+                    }
+                    createdBy {
+                        id
+                    }
+                    filename
+                    s3Key
+                    organization {
+                        id
+                    }
+                }
+            }
+            """,
+            variables={'id': dataset_id}
+        )
 
     def add_dataset(self, filename, project_id):
         """Add a new dataset object.
@@ -770,12 +671,34 @@ class CooperPair(object):
         Returns:
             A dict containing the parsed results of the mutation.
         """
-        return self.query(ADD_DATASET_MUTATION, variables={
-            'dataset': {
-                'filename': filename,
-                'projectId': project_id,
+        return self.query("""
+            mutation addDatasetMutation($dataset: AddDatasetInput!) {
+                addDataset(input: $dataset) {
+                dataset {
+                    id
+                    project {
+                    id
+                    }
+                    createdBy {
+                    id
+                    }
+                    filename
+                    s3Url
+                    s3Key
+                    organization {
+                    id
+                    }
+                }
+                }
             }
-        })
+            """,
+            variables={
+                'dataset': {
+                    'filename': filename,
+                    'projectId': project_id,
+                }
+            }
+        )
 
     def upload_dataset(self, presigned_post, fd):
         """Utility function to upload a file to S3.
@@ -824,7 +747,57 @@ class CooperPair(object):
         else:
             assert dataset_id is None, 'Do not pass a dataset_id if not ' \
                 'autoinspecting.'
-        return self.query(ADD_CHECKPOINT_MUTATION, variables={
+        return self.query("""
+            mutation addCheckpointMutation($checkpoint: AddCheckpointInput!) {
+                addCheckpoint(input: $checkpoint) {
+                checkpoint {
+                    id
+                    name
+                    slug
+                    autoinspectionStatus
+                    project {
+                    id
+                    }
+                    createdBy {
+                    id
+                    }
+                    expectations {
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                        edges {
+                            cursor
+                            node {
+                                id
+                            }
+                        }
+                    }
+                    sections {
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                        edges {
+                            cursor
+                            node {
+                                id
+                            }
+                        }
+                    }
+                    organization {
+                    id
+                    }
+                    notifyOn
+                }
+                }
+            }
+        """,
+        variables={
             'checkpoint': {
                 'name': name,
                 'slug': generate_slug(name),
@@ -842,7 +815,30 @@ class CooperPair(object):
         Returns:
             A dict representation of the expectation.
         """
-        return self.query(EXPECTATION_QUERY, variables={'id': expectation_id})
+        return self.query("""
+            query expectationQuery($id: ID!) {
+                expectation(id: $id) {
+                    id
+                    expectationType
+                    expectationKwargs
+                    isActivated
+                    createdBy {
+                        id
+                    }
+                    organization {
+                        id
+                    }
+                    question {
+                        id
+                    }
+                    checkpoint {
+                        id
+                    }
+                }
+            }
+            """,
+            variables={'id': expectation_id}
+        )
 
     def add_expectation(
             self,
