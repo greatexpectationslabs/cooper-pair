@@ -1056,10 +1056,9 @@ class CooperPair(object):
                 'name': column,
                 'slug': generate_slug(column),
                 'sequenceNumber': sequence_number,
-                # 'createdById': 1,  # FIXME this should be passed in
                 'questions': generate_questions(
-                    expectations_config_by_column[column])
-                # 'organizationId': 1,  # FIXME this should be passed in
+                    expectations_config_by_column[column]
+                )
                 # 'checkpointId': checkpoint_id
             })
             sequence_number += 1

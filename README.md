@@ -24,7 +24,8 @@ independently.
 Wrapping a flexible GraphQL API in a rigid python library would completely defeat that purpose.
 
 Instead, think of `cooper_pair` as training wheels. It makes it easy to quickly connect
-to GraphQL. It also provides a collection of example queries to get started in GraphQL.
+to GraphQL, and some glue code for moving data around. It also provides a collection of example
+queries to get started in GraphQL.
 
 If you're running basic, common queries against Superconductive's APIs, `cooper_pair` *might*
 support your use case. For anything else, exploration is strongly encouraged.
