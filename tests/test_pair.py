@@ -1,12 +1,13 @@
 # pylint: disable=C0103, C0111, E0401
 
 #FIXME: These tests require a freshly seeded instance of allotrope.
+#FIXME: Do they? I've been running them successfully on very outdated data...
 
 import json
 import os
 import time
 
-import pandas
+import pandas as pd
 import pytest
 import unittest
 
@@ -111,9 +112,14 @@ def test_upload_dataset():
 
 
 def test_add_checkpoint():
-    assert pair.add_checkpoint(name='my cool checkpoint')
+    response = pair.add_checkpoint(name='my cool checkpoint')
+    assert response
+
+    #FIXME: Documentation needed: Why does this fail?
     with pytest.raises(AssertionError):
         pair.add_checkpoint(name='my other cool checkpoint', autoinspect=True)
+
+    #FIXME: Documentation needed: Why does this fail?
     with pytest.raises(AssertionError):
         pair.add_checkpoint(name='my other cool checkpoint', dataset_id=1)
 
@@ -318,7 +324,7 @@ def test_add_dataset_from_pandas_df():
     pwd = os.getcwd()
     os.chdir(os.path.dirname(__file__))
     try:
-        pandas_df = pandas.read_csv('etp_participant_data.csv')
+        pandas_df = pd.read_csv('etp_participant_data.csv')
         with pytest.raises(AttributeError):
             pair.add_dataset_from_pandas_df(pandas_df, 1)
         response = pair.add_dataset_from_pandas_df(
@@ -332,7 +338,7 @@ def test_evaluate_checkpoint_on_pandas_df():
     pwd = os.getcwd()
     os.chdir(os.path.dirname(__file__))
     try:
-        pandas_df = pandas.read_csv('etp_participant_data.csv')
+        pandas_df = pd.read_csv('etp_participant_data.csv')
         with pytest.raises(AttributeError):
             pair.evaluate_checkpoint_on_pandas_df(2, pandas_df)
 
@@ -407,3 +413,23 @@ class TestSomeStuff(unittest.TestCase):
         )
 
         #FIXME: Test a mutation with `results`
+
+    def test_list_datasets(self):
+        pandas_df = pd.DataFrame({
+            "x" : [1,2,3,4,5],
+            "y" : list("ABCDE"),
+        })
+        response = pair.add_dataset_from_pandas_df(
+            pandas_df,
+            project_id=1,
+            filename='test_data_12345'
+        )
+        print(json.dumps(response, indent=2))
+
+        response_2 = pair.list_datasets()
+        print(json.dumps(response_2, indent=2))
+
+        assert False
+
+
+

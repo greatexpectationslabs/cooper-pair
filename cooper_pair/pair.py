@@ -1281,3 +1281,7 @@ class CooperPair(object):
             A dict containing the parsed query.
         """
         return self.query(LIST_CONFIGURED_NOTIFICATIONS_QUERY)
+
+    def list_datasets(self):
+        return self.query("""
+        """)
