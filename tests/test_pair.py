@@ -445,3 +445,22 @@ class TestSomeStuff(unittest.TestCase):
         assert my_filename in matched_filename
         assert my_filename in matched_s3Key
 
+
+    def test_get_dataset(self):
+        my_filename = "test_data_123456"
+        pandas_df = pd.DataFrame({
+            "x" : [1,2,3,4,5],
+            "y" : list("ABCDE"),
+        })
+        response_1 = pair.add_dataset_from_pandas_df(
+            pandas_df,
+            project_id=1,
+            filename=my_filename
+        )
+        print(json.dumps(response_1, indent=2))
+
+        response_2 = pair.get_dataset(
+            response_1["dataset"]["id"]
+        )
+        print(json.dumps(response_2, indent=2))
+        self.assertEqual(response_1, response_2)        
