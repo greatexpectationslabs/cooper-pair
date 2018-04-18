@@ -27,6 +27,8 @@ MAX_RETRIES = 10
 
 DQM_GRAPHQL_URL = os.environ.get('DQM_GRAPHQL_URL')
 
+#FIXME: To make the codebase more transparent, we should move these queries into their respective functions.
+
 ADD_EXPECTATION_MUTATION = """
   mutation addExpectationMutation($expectation: AddExpectationInput!) {
     addExpectation(input: $expectation) {
@@ -1279,5 +1281,14 @@ class CooperPair(object):
         return self.query(LIST_CONFIGURED_NOTIFICATIONS_QUERY)
 
     def list_datasets(self):
-        return self.query("""
-        """)
+        return self.query("""{
+            allDatasets{
+                edges {
+                    node{
+                        id
+                        s3Key
+                        filename
+                    }
+                }
+            }
+        }""")

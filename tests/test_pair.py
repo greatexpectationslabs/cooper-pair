@@ -415,21 +415,33 @@ class TestSomeStuff(unittest.TestCase):
         #FIXME: Test a mutation with `results`
 
     def test_list_datasets(self):
+        response_1 = pair.list_datasets()
+        # print(json.dumps(response_1, indent=2))
+
+        my_filename = "test_data_123456"
         pandas_df = pd.DataFrame({
             "x" : [1,2,3,4,5],
             "y" : list("ABCDE"),
         })
-        response = pair.add_dataset_from_pandas_df(
+        response_2 = pair.add_dataset_from_pandas_df(
             pandas_df,
             project_id=1,
-            filename='test_data_12345'
+            filename=my_filename
         )
-        print(json.dumps(response, indent=2))
-
-        response_2 = pair.list_datasets()
         print(json.dumps(response_2, indent=2))
 
-        assert False
+        response_3 = pair.list_datasets()
+        # print(json.dumps(response_3, indent=2))
 
+        assert len(response_3["allDatasets"]["edges"]) - len(response_1["allDatasets"]["edges"]) == 1
 
+        #Unpack results into a dataFrame
+        temp_df = pd.DataFrame([row["node"] for row in response_3["allDatasets"]["edges"]])
+        assert temp_df[temp_df["id"]==response_2["dataset"]["id"]].shape == (1,3)
+
+        matched_filename = list(temp_df[temp_df["id"]==response_2["dataset"]["id"]]["filename"])[0]
+        matched_s3Key = list(temp_df[temp_df["id"]==response_2["dataset"]["id"]]["s3Key"])[0]
+
+        assert my_filename in matched_filename
+        assert my_filename in matched_s3Key
 
