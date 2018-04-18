@@ -4,6 +4,7 @@
 
 import json
 import os
+import time
 
 import pandas
 import pytest
@@ -298,8 +299,10 @@ def test_add_dataset_from_pandas_df():
         pandas_df = pandas.read_csv('etp_participant_data.csv')
         with pytest.raises(AttributeError):
             pair.add_dataset_from_pandas_df(pandas_df, 1)
-        assert pair.add_dataset_from_pandas_df(
+        response = pair.add_dataset_from_pandas_df(
             pandas_df, 1, filename='etp_participant_data')
+        assert response
+
     finally:
         os.chdir(pwd)
 
@@ -312,7 +315,28 @@ def test_evaluate_checkpoint_on_pandas_df():
             pair.evaluate_checkpoint_on_pandas_df(2, pandas_df)
 
         pandas_df.name = 'foo'
-        assert pair.evaluate_checkpoint_on_pandas_df(1, pandas_df)
+        response = pair.evaluate_checkpoint_on_pandas_df(1, pandas_df)
+        print(json.dumps(response, indent=2))
+        assert response
+        assert response["addEvaluation"]["evaluation"]["status"] == "created"
+
+        #Give rgmelins a chance to pick up the job
+        time.sleep(.5)
+
+        response_2 = pair.query("""
+                query evaluationQuery($id: ID!) {
+                    evaluation(id: $id) {
+                        id,
+                        status
+                    }
+                }
+            """,
+            variables={
+                'id' : response["addEvaluation"]["evaluation"]["id"]
+        })
+        print(json.dumps(response_2, indent=2))
+        assert response_2["evaluation"]["status"] in ["pending", "complete"]
+
     finally:
         os.chdir(pwd)
 
