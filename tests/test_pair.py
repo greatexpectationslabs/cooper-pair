@@ -299,7 +299,7 @@ def test_evaluate_checkpoint_on_file():
             assert response["addEvaluation"]["evaluation"]["status"] == "created"
 
             #Give rgmelins a chance to pick up the job
-            time.sleep(.5)
+            time.sleep(1)
 
             response_2 = pair.query("""
                     query evaluationQuery($id: ID!) {
