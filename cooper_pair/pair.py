@@ -79,101 +79,6 @@ UPDATE_EXPECTATION_MUTATION = """
   }
 """
 
-LIST_CHECKPOINTS_QUERY = """
-  query listCheckpointQuery{
-    allCheckpoints {
-      pageInfo {
-        hasNextPage
-        hasPreviousPage
-        startCursor
-        endCursor
-      }
-      edges {
-        cursor
-        node {
-          id
-          name
-          autoinspectionStatus
-          project {
-            id
-          }
-          organization {
-            id
-          }
-          expectations {
-            pageInfo {
-              hasNextPage
-              hasPreviousPage
-              startCursor
-              endCursor
-            }
-            edges {
-              cursor
-              node {
-                id
-                expectationType
-                expectationKwargs
-                isActivated
-                createdBy {
-                  id
-                }
-                organization {
-                  id
-                }
-                question {
-                  id
-                }
-                checkpoint {
-                  id
-                }
-              }
-            }
-          }
-          sections {
-            pageInfo {
-              hasNextPage
-              hasPreviousPage
-              startCursor
-              endCursor
-            }
-            edges {
-              cursor
-              node {
-                id
-                name
-                slug
-                sequenceNumber
-                createdBy {
-                  id
-                }
-                questions {
-                  pageInfo {
-                    hasNextPage
-                    hasPreviousPage
-                    startCursor
-                    endCursor
-                  }
-                  edges {
-                    cursor
-                    node {
-                      id
-                      questionObj
-                      expectation {
-                        id
-                      }
-                      sequenceNumber
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-"""
-
 CHECKPOINT_QUERY = """
   query checkpointQuery($id: ID!) {
     checkpoint(id: $id) {
@@ -957,13 +862,121 @@ class CooperPair(object):
         """
         return self.query(CHECKPOINT_QUERY, variables={'id': checkpoint_id})
 
-    def list_checkpoints(self):
+    def list_checkpoints(self, complex=False):
         """Retrieve all existing checkpoints.
 
         Returns:
             A dict containing the parsed query.
         """
-        return self.query(LIST_CHECKPOINTS_QUERY)
+        if not complex:
+            return self.query("""
+                query listCheckpointQuery{
+                    allCheckpoints {
+                        edges {
+                            node {
+                                id
+                                name
+                            }
+                        }
+                    }
+                }
+            """)
+        else:
+            return self.query("""
+                query listCheckpointQuery{
+                    allCheckpoints {
+                    pageInfo {
+                        hasNextPage
+                        hasPreviousPage
+                        startCursor
+                        endCursor
+                    }
+                    edges {
+                        cursor
+                        node {
+                        id
+                        name
+                        autoinspectionStatus
+                        project {
+                            id
+                        }
+                        organization {
+                            id
+                        }
+                        expectations {
+                            pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                            }
+                            edges {
+                            cursor
+                            node {
+                                id
+                                expectationType
+                                expectationKwargs
+                                isActivated
+                                createdBy {
+                                id
+                                }
+                                organization {
+                                id
+                                }
+                                question {
+                                id
+                                }
+                                checkpoint {
+                                id
+                                }
+                            }
+                            }
+                        }
+                        sections {
+                            pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                            }
+                            edges {
+                            cursor
+                            node {
+                                id
+                                name
+                                slug
+                                sequenceNumber
+                                createdBy {
+                                id
+                                }
+                                questions {
+                                pageInfo {
+                                    hasNextPage
+                                    hasPreviousPage
+                                    startCursor
+                                    endCursor
+                                }
+                                edges {
+                                    cursor
+                                    node {
+                                    id
+                                    questionObj
+                                    expectation {
+                                        id
+                                    }
+                                    sequenceNumber
+                                    }
+                                }
+                                }
+                            }
+                            }
+                        }
+                        }
+                    }
+                    }
+                }
+                """
+            )
 
     def update_checkpoint(
             self,

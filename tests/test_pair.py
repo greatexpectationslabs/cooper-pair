@@ -369,9 +369,21 @@ def test_evaluate_checkpoint_on_pandas_df():
         os.chdir(pwd)
 
 def test_list_checkpoints():
-    res = pair.list_checkpoints()
-    assert res
-    assert len(res.get('allCheckpoints', [])) > 0
+    response_1 = pair.list_checkpoints()
+    assert response_1
+    assert len(response_1.get('allCheckpoints', [])) > 0
+    # print( json.dumps(response_1, indent=2) )
+
+    response_2 = pair.list_checkpoints(complex=True)
+    assert response_2
+    assert len(response_2.get('allCheckpoints', [])) > 0
+
+    assert len(response_1) == len(response_2)
+    for node in response_1["allCheckpoints"]["edges"]:
+        print( node )
+        print( node["node"].keys() )
+        assert node["node"].keys() == set(["id", "name"])
+
 
 class TestSomeStuff(unittest.TestCase):
     #Declaring a real TestCase class so that we can use unittest affordances.
