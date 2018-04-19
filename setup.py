@@ -22,10 +22,10 @@ if __name__ == '__main__':
     install_reqs = [str(r.req) for r in install_reqs if r.req]
     setup(name='cooper_pair',
           version=get_version(),
-          author='Max Gasner',
-          author_email='max@superconductivehealth.com',
-          maintainer='Max Gasner',
-          maintainer_email='max@superconductivehealth.com',
+          author='Superconductive Health',
+          author_email='dev@superconductivehealth.com',
+          maintainer='Superconductive Health',
+          maintainer_email='dev@superconductivehealth.com',
           install_requires=install_reqs,
           dependency_links=dependency_links,
           packages=find_packages())

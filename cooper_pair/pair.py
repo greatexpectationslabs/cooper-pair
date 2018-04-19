@@ -21,498 +21,11 @@ from gql.transport.requests import RequestsHTTPTransport
 from graphql import (parse, introspection_query, build_client_schema)
 
 
-TIMEOUT = 10
+TIMEOUT = 2
 
 MAX_RETRIES = 10
 
 DQM_GRAPHQL_URL = os.environ.get('DQM_GRAPHQL_URL')
-
-LOGIN_MUTATION = gql("""
-  mutation loginMutation($input: LoginInput!) {
-    login(input: $input) {
-      token
-    }
-  }
-""")
-
-ADD_EVALUATION_MUTATION = gql("""
-  mutation addEvaluationMutation($evaluation: AddEvaluationInput!) {
-    addEvaluation(input: $evaluation) {
-      evaluation {
-        id
-        dataset {
-            id
-        }
-        checkpoint {
-            id
-        }
-        createdBy {
-            id
-        }
-        organization {
-            id
-        }
-        results {
-            pageInfo {
-                hasNextPage
-                hasPreviousPage
-                startCursor
-                endCursor
-            }
-            edges {
-                cursor
-                node {
-                    id
-                }
-            }
-        }
-        status
-      }
-    }
-  }
-""")
-
-ADD_DATASET_MUTATION = gql("""
-  mutation addDatasetMutation($dataset: AddDatasetInput!) {
-    addDataset(input: $dataset) {
-      dataset {
-        id
-        project {
-          id
-        }
-        createdBy {
-          id
-        }
-        filename
-        s3Url
-        s3Key
-        organization {
-          id
-        }
-      }
-    }
-  }
-""")
-
-ADD_CHECKPOINT_MUTATION = gql("""
-  mutation addCheckpointMutation($checkpoint: AddCheckpointInput!) {
-    addCheckpoint(input: $checkpoint) {
-      checkpoint {
-        id
-        name
-        slug
-        autoinspectionStatus
-        project {
-          id
-        }
-        createdBy {
-          id
-        }
-        expectations {
-            pageInfo {
-                hasNextPage
-                hasPreviousPage
-                startCursor
-                endCursor
-            }
-            edges {
-                cursor
-                node {
-                    id
-                }
-            }
-        }
-        sections {
-            pageInfo {
-                hasNextPage
-                hasPreviousPage
-                startCursor
-                endCursor
-            }
-            edges {
-                cursor
-                node {
-                    id
-                }
-            }
-        }
-        organization {
-          id
-        }
-        notifyOn
-      }
-    }
-  }
-""")
-
-EXPECTATION_QUERY = gql("""
-  query expectationQuery($id: ID!) {
-    expectation(id: $id) {
-        id
-        expectationType
-        expectationKwargs
-        isActivated
-        createdBy {
-            id
-        }
-        organization {
-            id
-        }
-        question {
-            id
-        }
-        checkpoint {
-            id
-        }
-    }
-  }
-""")
-
-DATASET_QUERY = gql("""
-  query datasetQuery($id: ID!) {
-    dataset(id: $id) {
-        id
-        project {
-            id
-        }
-        createdBy {
-            id
-        }
-        filename
-        s3Key
-        organization {
-            id
-        }
-    }
-  }
-""")
-
-ADD_EXPECTATION_MUTATION = gql("""
-  mutation addExpectationMutation($expectation: AddExpectationInput!) {
-    addExpectation(input: $expectation) {
-      expectation {
-        id
-        expectationType
-        expectationKwargs
-        isActivated
-        createdBy {
-            id
-        }
-        organization {
-            id
-        }
-        question {
-            id
-        }
-        checkpoint {
-            id
-        }
-      }
-    }
-  }
-""")
-
-UPDATE_EXPECTATION_MUTATION = gql("""
-  mutation updateExpectationMutation($expectation: UpdateExpectationInput!) {
-    updateExpectation(input: $expectation) {
-      expectation {
-        id
-        expectationType
-        expectationKwargs
-        isActivated
-        createdBy {
-            id
-        }
-        organization {
-            id
-        }
-        question {
-            id
-        }
-        checkpoint {
-            id
-        }
-      }
-    }
-  }
-""")
-
-LIST_CHECKPOINTS_QUERY = gql("""
-  query listCheckpointQuery{
-    allCheckpoints {
-      pageInfo {
-        hasNextPage
-        hasPreviousPage
-        startCursor
-        endCursor
-      }
-      edges {
-        cursor
-        node {
-          id
-          name
-          autoinspectionStatus
-          project {
-            id
-          }
-          organization {
-            id
-          }
-          expectations {
-            pageInfo {
-              hasNextPage
-              hasPreviousPage
-              startCursor
-              endCursor
-            }
-            edges {
-              cursor
-              node {
-                id
-                expectationType
-                expectationKwargs
-                isActivated
-                createdBy {
-                  id
-                }
-                organization {
-                  id
-                }
-                question {
-                  id
-                }
-                checkpoint {
-                  id
-                }
-              }
-            }
-          }
-          sections {
-            pageInfo {
-              hasNextPage
-              hasPreviousPage
-              startCursor
-              endCursor
-            }
-            edges {
-              cursor
-              node {
-                id
-                name
-                slug
-                sequenceNumber
-                createdBy {
-                  id
-                }
-                questions {
-                  pageInfo {
-                    hasNextPage
-                    hasPreviousPage
-                    startCursor
-                    endCursor
-                  }
-                  edges {
-                    cursor
-                    node {
-                      id
-                      questionObj
-                      expectation {
-                        id
-                      }
-                      sequenceNumber
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-""")
-
-CHECKPOINT_QUERY = gql("""
-  query checkpointQuery($id: ID!) {
-    checkpoint(id: $id) {
-      id
-      autoinspectionStatus
-      project {
-          id
-      }
-      organization {
-          id
-      }
-      expectations {
-        pageInfo {
-            hasNextPage
-            hasPreviousPage
-            startCursor
-            endCursor
-        }
-        edges {
-            cursor
-            node {
-                id
-                expectationType
-                expectationKwargs
-                isActivated
-                createdBy {
-                    id
-                }
-                organization {
-                    id
-                }
-                question {
-                    id
-                }
-                checkpoint {
-                    id
-                }
-            }
-        }
-      }
-      sections {
-        pageInfo {
-            hasNextPage
-            hasPreviousPage
-            startCursor
-            endCursor
-        }
-        edges {
-            cursor
-            node {
-                id
-                name
-                slug
-                sequenceNumber
-                createdBy {
-                    id
-                }
-                questions {
-                    pageInfo {
-                        hasNextPage
-                        hasPreviousPage
-                        startCursor
-                        endCursor
-                    }
-                    edges {
-                        cursor
-                        node {
-                            id
-                            questionObj
-                            expectation {
-                                id
-                            }
-                            sequenceNumber
-                        }
-                    }
-                }
-            }
-        }
-      }
-    }
-  }
-""")
-
-UPDATE_CHECKPOINT_MUTATION = gql("""
-  mutation($updateCheckpoint: UpdateCheckpointInput!) {
-    updateCheckpoint(input: $updateCheckpoint) {
-      checkpoint {
-        id
-        expectations {
-            pageInfo {
-                hasNextPage
-                hasPreviousPage
-                startCursor
-                endCursor
-            }
-            edges {
-                cursor
-                node {
-                    id
-                    expectationType
-                    expectationKwargs
-                    isActivated
-                    createdBy {
-                        id
-                    }
-                    organization {
-                        id
-                    }
-                    question {
-                        id
-                    }
-                    checkpoint {
-                        id
-                    }
-                }
-            }
-        }
-      }
-    }
-  }
-""")
-
-LIST_CONFIGURED_NOTIFICATIONS_QUERY = gql("""
-{
-    allConfiguredNotifications {
-        edges {
-            cursor
-            node {
-                id
-                notificationType
-                value
-            }
-        }
-    }
-}
-""")
-
-UPDATE_EVALUATION_MUTATION = gql("""
-mutation($updateEvaluation: UpdateEvaluationInput!) {
-    updateEvaluation(input: $updateEvaluation) {
-        evaluation {
-            id
-            datasetId
-            checkpointId
-            createdById
-            createdBy {
-                id
-            }
-            dataset {
-                id
-                filename
-            }
-            organizationId
-            organization {
-                id
-            }
-            checkpoint {
-                id
-                name
-            }
-            results {
-                edges {
-                    cursor
-                    node {
-                        id
-                        success
-                        summaryObj
-                        expectationType
-                        expectationKwargs
-                        raisedException
-                        exceptionTraceback
-                        evaluationId
-                    }
-                }
-            }
-            updatedAt
-        }
-    }
-}
-""")
-
 
 def make_gql_client(transport=None, schema=None, retries=MAX_RETRIES,
                     timeout=TIMEOUT):
@@ -567,7 +80,7 @@ def generate_questions(expectations):
     # TODO: sort by the ordinary sort order for columns here
     for expectation in expectations:
         munged = {
-            'createdById': 1,  # TODO: this should be passed in
+            # 'createdById': 1,  # TODO: this should be passed in
             'expectationType': expectation['expectation_type'],
             'expectationKwargs': json.dumps(expectation['kwargs']),
             'isActivated': expectation.get('isActivated') or True
@@ -654,7 +167,14 @@ class CooperPair(object):
             warnings.warn('Must provide email and password to login.')
             return False
         login_result = self.client.execute(
-            LOGIN_MUTATION, variable_values={
+            gql("""
+                mutation loginMutation($input: LoginInput!) {
+                    login(input: $input) {
+                    token
+                    }
+                }
+            """),
+            variable_values={
                 'input': {
                     'email': email,
                     'password': password
@@ -676,9 +196,8 @@ class CooperPair(object):
         """Workhorse to execute queries.
 
         Args:
-            query (graphql.language.ast.Document) -- A valid GraphQL query,
-                for instance as generated by running gql.gql on the string
-                representation of a query.
+            query (string) -- A valid GraphQL query. query will apply
+                gql.gql on the string to generate a graphql.language.ast.Document.
 
         Kwargs:
             variables (dict) -- A Python dict containing variables to be
@@ -694,9 +213,12 @@ class CooperPair(object):
                 warnings.warn(
                     'Client not authenticated. Expect queries to fail. '
                     'Please call CooperPair.login(email, password).')
-        return self.client.execute(query, variable_values=variables)
 
-    def add_evaluation(self, dataset_id, checkpoint_id, created_by_id):
+        query_gql = gql(query)
+        
+        return self.client.execute(query_gql, variable_values=variables)
+
+    def add_evaluation(self, dataset_id, checkpoint_id):
         """Add a new evaluation.
 
         Args:
@@ -704,17 +226,50 @@ class CooperPair(object):
                 to run the evaluation.
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the evaluation.
 
         Returns:
             A dict containing the parsed results of the mutation.
         """
-        return self.query(ADD_EVALUATION_MUTATION, variables={
+        return self.query("""
+            mutation addEvaluationMutation($evaluation: AddEvaluationInput!) {
+                addEvaluation(input: $evaluation) {
+                evaluation {
+                    id
+                    dataset {
+                        id
+                    }
+                    checkpoint {
+                        id
+                    }
+                    createdBy {
+                        id
+                    }
+                    organization {
+                        id
+                    }
+                    results {
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                        edges {
+                            cursor
+                            node {
+                                id
+                            }
+                        }
+                    }
+                    status
+                }
+                }
+            }
+        """,
+        variables={
             'evaluation': {
                 'datasetId': dataset_id,
                 'checkpointId': checkpoint_id,
-                'createdById': created_by_id
             }
         })
 
@@ -741,7 +296,51 @@ class CooperPair(object):
         if status is not None:
             variables['updateEvaluation']['status'] = status
 
-        return self.query(UPDATE_EVALUATION_MUTATION, variables=variables)
+        return self.query("""
+            mutation($updateEvaluation: UpdateEvaluationInput!) {
+                updateEvaluation(input: $updateEvaluation) {
+                    evaluation {
+                        id
+                        datasetId
+                        checkpointId
+                        createdById
+                        createdBy {
+                            id
+                        }
+                        dataset {
+                            id
+                            filename
+                        }
+                        organizationId
+                        organization {
+                            id
+                        }
+                        checkpoint {
+                            id
+                            name
+                        }
+                        results {
+                            edges {
+                                cursor
+                                node {
+                                    id
+                                    success
+                                    summaryObj
+                                    expectationType
+                                    expectationKwargs
+                                    raisedException
+                                    exceptionTraceback
+                                    evaluationId
+                                }
+                            }
+                        }
+                        status
+                        updatedAt
+                    }
+                }
+            }
+            """
+            , variables=variables)
 
     def get_dataset(self, dataset_id):
         """Retrieve a dataset by its id.
@@ -753,9 +352,28 @@ class CooperPair(object):
         Returns:
             A dict representation of the dataset.
         """
-        return self.query(DATASET_QUERY, variables={'id': dataset_id})
+        return self.query("""
+            query datasetQuery($id: ID!) {
+                dataset(id: $id) {
+                    id
+                    project {
+                        id
+                    }
+                    createdBy {
+                        id
+                    }
+                    filename
+                    s3Key
+                    organization {
+                        id
+                    }
+                }
+            }
+            """,
+            variables={'id': dataset_id}
+        )
 
-    def add_dataset(self, filename, project_id, created_by_id):
+    def add_dataset(self, filename, project_id):
         """Add a new dataset object.
 
         Users should probably not call this function directly. Instead,
@@ -765,21 +383,38 @@ class CooperPair(object):
             filename (str) -- The filename of the new dataset.
             project_id (int or str Relay id) -- The id of the project to which
                 the dataset belongs.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the dataset.
 
         Returns:
             A dict containing the parsed results of the mutation.
         """
-        # TODO: created_by_id should be set by the server, once auth is
-        # implemented
-        return self.query(ADD_DATASET_MUTATION, variables={
-            'dataset': {
-                'filename': filename,
-                'projectId': project_id,
-                'createdById': created_by_id
+        return self.query("""
+            mutation addDatasetMutation($dataset: AddDatasetInput!) {
+                addDataset(input: $dataset) {
+                dataset {
+                    id
+                    project {
+                    id
+                    }
+                    createdBy {
+                    id
+                    }
+                    filename
+                    s3Url
+                    s3Key
+                    organization {
+                    id
+                    }
+                }
+                }
             }
-        })
+            """,
+            variables={
+                'dataset': {
+                    'filename': filename,
+                    'projectId': project_id,
+                }
+            }
+        )
 
     def upload_dataset(self, presigned_post, fd):
         """Utility function to upload a file to S3.
@@ -828,7 +463,57 @@ class CooperPair(object):
         else:
             assert dataset_id is None, 'Do not pass a dataset_id if not ' \
                 'autoinspecting.'
-        return self.query(ADD_CHECKPOINT_MUTATION, variables={
+        return self.query("""
+            mutation addCheckpointMutation($checkpoint: AddCheckpointInput!) {
+                addCheckpoint(input: $checkpoint) {
+                checkpoint {
+                    id
+                    name
+                    slug
+                    autoinspectionStatus
+                    project {
+                    id
+                    }
+                    createdBy {
+                    id
+                    }
+                    expectations {
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                        edges {
+                            cursor
+                            node {
+                                id
+                            }
+                        }
+                    }
+                    sections {
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                        edges {
+                            cursor
+                            node {
+                                id
+                            }
+                        }
+                    }
+                    organization {
+                    id
+                    }
+                    notifyOn
+                }
+                }
+            }
+        """,
+        variables={
             'checkpoint': {
                 'name': name,
                 'slug': generate_slug(name),
@@ -846,14 +531,37 @@ class CooperPair(object):
         Returns:
             A dict representation of the expectation.
         """
-        return self.query(EXPECTATION_QUERY, variables={'id': expectation_id})
+        return self.query("""
+            query expectationQuery($id: ID!) {
+                expectation(id: $id) {
+                    id
+                    expectationType
+                    expectationKwargs
+                    isActivated
+                    createdBy {
+                        id
+                    }
+                    organization {
+                        id
+                    }
+                    question {
+                        id
+                    }
+                    checkpoint {
+                        id
+                    }
+                }
+            }
+            """,
+            variables={'id': expectation_id}
+        )
 
     def add_expectation(
             self,
             checkpoint_id,
             expectation_type,
             expectation_kwargs,
-            created_by_id):
+        ):
         """Add a new expectation to a checkpoint.
 
         Args:
@@ -866,8 +574,6 @@ class CooperPair(object):
                 expectation kwargs, as JSON. Note: these are not yet validated
                 by client or server code, so failures will occur at evaluation
                 time.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the expectation.
 
         Returns:
             A dict containing the parsed results of the mutation.
@@ -884,13 +590,36 @@ class CooperPair(object):
                 'Must provide valid JSON expectation_kwargs (got %s)',
                 expectation_kwargs)
 
-        return self.query(ADD_EXPECTATION_MUTATION, variables={
+        return self.query("""
+            mutation addExpectationMutation($expectation: AddExpectationInput!) {
+                addExpectation(input: $expectation) {
+                expectation {
+                    id
+                    expectationType
+                    expectationKwargs
+                    isActivated
+                    createdBy {
+                        id
+                    }
+                    organization {
+                        id
+                    }
+                    question {
+                        id
+                    }
+                    checkpoint {
+                        id
+                    }
+                }
+                }
+            }
+        """,
+        variables={
             'expectation': {
                 'checkpointId': checkpoint_id,
                 'expectationType': expectation_type,
                 'expectationKwargs': expectation_kwargs,
-                'createdById': created_by_id
-            }})
+        }})
 
     def update_expectation(
             self,
@@ -952,7 +681,32 @@ class CooperPair(object):
         if expectation_kwargs is not None:
             variables['expectation']['expectationKwargs'] = expectation_kwargs
 
-        return self.query(UPDATE_EXPECTATION_MUTATION, variables=variables)
+        return self.query("""
+            mutation updateExpectationMutation($expectation: UpdateExpectationInput!) {
+                updateExpectation(input: $expectation) {
+                expectation {
+                    id
+                    expectationType
+                    expectationKwargs
+                    isActivated
+                    createdBy {
+                        id
+                    }
+                    organization {
+                        id
+                    }
+                    question {
+                        id
+                    }
+                    checkpoint {
+                        id
+                    }
+                }
+                }
+            }
+            """,
+            variables=variables
+        )
 
     def get_checkpoint(self, checkpoint_id):
         """Retrieve an existing checkpoint.
@@ -964,15 +718,206 @@ class CooperPair(object):
         Returns:
             A dict containing the parsed checkpoint.
         """
-        return self.query(CHECKPOINT_QUERY, variables={'id': checkpoint_id})
+        return self.query("""
+            query checkpointQuery($id: ID!) {
+                checkpoint(id: $id) {
+                id
+                autoinspectionStatus
+                project {
+                    id
+                }
+                organization {
+                    id
+                }
+                expectations {
+                    pageInfo {
+                        hasNextPage
+                        hasPreviousPage
+                        startCursor
+                        endCursor
+                    }
+                    edges {
+                        cursor
+                        node {
+                            id
+                            expectationType
+                            expectationKwargs
+                            isActivated
+                            createdBy {
+                                id
+                            }
+                            organization {
+                                id
+                            }
+                            question {
+                                id
+                            }
+                            checkpoint {
+                                id
+                            }
+                        }
+                    }
+                }
+                sections {
+                    pageInfo {
+                        hasNextPage
+                        hasPreviousPage
+                        startCursor
+                        endCursor
+                    }
+                    edges {
+                        cursor
+                        node {
+                            id
+                            name
+                            slug
+                            sequenceNumber
+                            createdBy {
+                                id
+                            }
+                            questions {
+                                pageInfo {
+                                    hasNextPage
+                                    hasPreviousPage
+                                    startCursor
+                                    endCursor
+                                }
+                                edges {
+                                    cursor
+                                    node {
+                                        id
+                                        questionObj
+                                        expectation {
+                                            id
+                                        }
+                                        sequenceNumber
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+            }
+            """,
+            variables={'id': checkpoint_id}
+        )
 
-    def list_checkpoints(self):
+    def list_checkpoints(self, complex=False):
         """Retrieve all existing checkpoints.
 
         Returns:
             A dict containing the parsed query.
         """
-        return self.query(LIST_CHECKPOINTS_QUERY)
+        if not complex:
+            return self.query("""
+                query listCheckpointQuery{
+                    allCheckpoints {
+                        edges {
+                            node {
+                                id
+                                name
+                            }
+                        }
+                    }
+                }
+            """)
+        else:
+            return self.query("""
+                query listCheckpointQuery{
+                    allCheckpoints {
+                    pageInfo {
+                        hasNextPage
+                        hasPreviousPage
+                        startCursor
+                        endCursor
+                    }
+                    edges {
+                        cursor
+                        node {
+                        id
+                        name
+                        autoinspectionStatus
+                        project {
+                            id
+                        }
+                        organization {
+                            id
+                        }
+                        expectations {
+                            pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                            }
+                            edges {
+                            cursor
+                            node {
+                                id
+                                expectationType
+                                expectationKwargs
+                                isActivated
+                                createdBy {
+                                id
+                                }
+                                organization {
+                                id
+                                }
+                                question {
+                                id
+                                }
+                                checkpoint {
+                                id
+                                }
+                            }
+                            }
+                        }
+                        sections {
+                            pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                            }
+                            edges {
+                            cursor
+                            node {
+                                id
+                                name
+                                slug
+                                sequenceNumber
+                                createdBy {
+                                id
+                                }
+                                questions {
+                                pageInfo {
+                                    hasNextPage
+                                    hasPreviousPage
+                                    startCursor
+                                    endCursor
+                                }
+                                edges {
+                                    cursor
+                                    node {
+                                    id
+                                    questionObj
+                                    expectation {
+                                        id
+                                    }
+                                    sequenceNumber
+                                    }
+                                }
+                                }
+                            }
+                            }
+                        }
+                        }
+                    }
+                    }
+                }
+                """
+            )
 
     def update_checkpoint(
             self,
@@ -1023,7 +968,46 @@ class CooperPair(object):
         if sections is not None:
             variables['updateCheckpoint']['sections'] = sections
 
-        result = self.query(UPDATE_CHECKPOINT_MUTATION, variables=variables)
+        result = self.query("""
+                mutation($updateCheckpoint: UpdateCheckpointInput!) {
+                    updateCheckpoint(input: $updateCheckpoint) {
+                    checkpoint {
+                        id
+                        expectations {
+                            pageInfo {
+                                hasNextPage
+                                hasPreviousPage
+                                startCursor
+                                endCursor
+                            }
+                            edges {
+                                cursor
+                                node {
+                                    id
+                                    expectationType
+                                    expectationKwargs
+                                    isActivated
+                                    createdBy {
+                                        id
+                                    }
+                                    organization {
+                                        id
+                                    }
+                                    question {
+                                        id
+                                    }
+                                    checkpoint {
+                                        id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    }
+                }
+            """,
+            variables=variables
+        )
         return result
 
     def add_checkpoint_from_expectations_config(
@@ -1066,10 +1050,9 @@ class CooperPair(object):
                 'name': column,
                 'slug': generate_slug(column),
                 'sequenceNumber': sequence_number,
-                'createdById': 1,  # FIXME this should be passed in
                 'questions': generate_questions(
-                    expectations_config_by_column[column])
-                # 'organizationId': 1,  # FIXME this should be passed in
+                    expectations_config_by_column[column]
+                )
                 # 'checkpointId': checkpoint_id
             })
             sequence_number += 1
@@ -1115,7 +1098,7 @@ class CooperPair(object):
         return expectations_config
 
     def add_dataset_from_file(
-            self, fd, project_id, created_by_id, filename=None):
+            self, fd, project_id, filename=None):
         """Add a new dataset from a file or file-like object.
 
         Args:
@@ -1123,8 +1106,6 @@ class CooperPair(object):
                 as a new dataset, opened as 'rb'.
             project_id (int or str Relay id) -- The id of the project to which
                 the dataset belongs.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the dataset.
 
         Kwargs:
             filename (str) -- The filename to associate with the dataset
@@ -1140,7 +1121,9 @@ class CooperPair(object):
                 name attribute.
         """
         dataset = self.add_dataset(
-            filename or fd.name, project_id, created_by_id)
+            filename or fd.name,
+            project_id
+        )
 
         presigned_post = dataset['addDataset']['dataset']['s3Url']
 
@@ -1149,15 +1132,13 @@ class CooperPair(object):
         return self.get_dataset(dataset['addDataset']['dataset']['id'])
 
     def add_dataset_from_pandas_df(
-            self, pandas_df, project_id, created_by_id, filename=None):
+            self, pandas_df, project_id, filename=None):
         """Add a new dataset from a pandas.DataFrame.
 
         Args:
             pandas_df (pandas.DataFrame) -- The data frame to add.
             project_id (int or str Relay id) -- The id of the project to which
                 the dataset belongs.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the dataset.
 
         Kwargs:
             filename (str) -- The filename to associate with the dataset
@@ -1177,13 +1158,12 @@ class CooperPair(object):
             return self.add_dataset_from_file(
                 fd,
                 project_id,
-                created_by_id,
-                filename=(filename or pandas_df.name))
+                filename=(filename or pandas_df.name)
+            )
 
     def evaluate_checkpoint_on_pandas_df(
             self,
             checkpoint_id,
-            created_by_id,
             pandas_df,
             filename=None):
         """Evaluate a checkpoint on a pandas.DataFrame.
@@ -1191,8 +1171,6 @@ class CooperPair(object):
         Args:
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the evaluation.
             pandas_df (pandas.DataFrame) -- The data frame on which to
                 evaluate the checkpoint.
 
@@ -1210,24 +1188,23 @@ class CooperPair(object):
         dataset = self.add_dataset_from_pandas_df(
             pandas_df,
             project_id,
-            created_by_id,
             filename=filename)
         return self.add_evaluation(
-            dataset['dataset']['id'], checkpoint_id, created_by_id)
+            dataset['dataset']['id'],
+            checkpoint_id
+        )
 
     def evaluate_checkpoint_on_file(
             self,
             checkpoint_id,
-            created_by_id,
             fd,
-            filename=None):
+            filename=None
+        ):
         """Evaluate a checkpoint on a file.
 
         Args:
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
-            created_by_id (int or str Relay id) -- The id of the user creating
-                the evaluation.
             fd (file-like) -- A file descriptor or file-like object to
                 evaluate, opened as 'rb'.
 
@@ -1245,10 +1222,11 @@ class CooperPair(object):
         dataset = self.add_dataset_from_file(
             fd,
             project_id,
-            created_by_id,
             filename=filename)
         return self.add_evaluation(
-            dataset['dataset']['id'], checkpoint_id, created_by_id)
+            dataset['dataset']['id'],
+            checkpoint_id
+        )
 
     def get_checkpoint_as_json_string(
             self, checkpoint_id, include_inactive=False):
@@ -1293,4 +1271,30 @@ class CooperPair(object):
         Returns:
             A dict containing the parsed query.
         """
-        return self.query(LIST_CONFIGURED_NOTIFICATIONS_QUERY)
+        return self.query("""
+            {
+                allConfiguredNotifications {
+                    edges {
+                        cursor
+                        node {
+                            id
+                            notificationType
+                            value
+                        }
+                    }
+                }
+            }
+        """)
+
+    def list_datasets(self):
+        return self.query("""{
+            allDatasets{
+                edges {
+                    node{
+                        id
+                        s3Key
+                        filename
+                    }
+                }
+            }
+        }""")
