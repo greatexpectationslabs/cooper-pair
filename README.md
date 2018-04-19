@@ -36,24 +36,72 @@ Or,
 ### Instantiate the API
 
     from cooper_pair import CooperPair
-    pair = CooperPair()
 
-### Adding a new dataset
+    pair = CooperPair(
+        graphql_endpoint="http://my-data-valet-url:3010/graphql",
+        email='my_user@some_email.com',
+        password='my_very_secure_password'
+    )
+
+### List datasets
+
+    response = pair.list_datasets()
+    print( json.dumps(response, indent=2))
+
+### Get a dataset
+    response = pair.get_dataset("RGF2YXNldPoxODl=")
+    print( json.dumps(response, indent=2))
+
+### List checkpoints
+
+    response = pair.list_checkpoints()
+    print( json.dumps(response, indent=2) )
+
+### Create a new dataset and evaluate it against an existing checkpoint
+
+From a dataframe:
+
+    my_df = pd.DataFrame({
+        "x" : [1,2,3,4,5],
+        "y" : [6,7,8,9,10],
+    })
+    response = pair.evaluate_checkpoint_on_pandas_df(
+        checkpoint_id="Q2hlY2twb2ludDox",
+        pandas_df=my_df,
+        filename="my_dataframe_name"
+    )
+    evaluation_id = response['addEvaluation']['evaluation']['id']
+    dataset_id = response['addEvaluation']['evaluation']['dataset']['id']
 
 From a file:
 
-    with open(filename, 'rb') as fd:
-        dataset = pair.add_dataset_from_file(
-            fd,
-            project_id=project_id
+    with open('my_file.csv', 'rb') as fd:
+        dataset = pair.evaluate_checkpoint_on_file(
+            checkpoint_id="Q2hlY2twb2ludDox",
+            fd=fd,
         )
-    dataset_id = dataset['dataset']['id']
+    evaluation_id = response['addEvaluation']['evaluation']['id']
+    dataset_id = response['addEvaluation']['evaluation']['dataset']['id']
 
-### Creating a new checkpoint by autoinspection
+Note: Evaluation is asynchronous. When the response first comes back from Allotrope,
+it will have `status="created"`. This will change to `pending` when a worker picks it up,
+then to `success` or `failed` depending on the result of the evaluation.
 
-    checkpoint = pair.add_checkpoint(checkpoint_name, autoinspect=True, dataset_id=dataset_id)
-    checkpoint_id = checkpoint['addCheckpoint']['checkpoint']['id']
- 
+You can query for status as follows:
+
+    response = pair.query("""
+            query evaluationQuery($id: ID!) {
+                evaluation(id: $id) {
+                    id,
+                    status
+                }
+            }
+        """,
+        variables={
+            'id' : evaluation_id
+    })
+    print(response)
+
 ### Creating a new checkpoint from JSON
     
     import json
@@ -63,4 +111,4 @@ From a file:
     pair.add_checkpoint_from_expectations_config(
         checkpoint_config, "Checkpoint Name")
 
-### Evaluating a checkpoint on a dataset
+
