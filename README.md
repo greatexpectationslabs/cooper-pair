@@ -2,15 +2,7 @@
 
 `cooper_pair` is a Python library that provides programmatic access to Superconductive's GraphQL API.
 
-It supports two limited use cases...
-* Help jumpstart python integrations to Superconductive's software
-* Serve as a repository of useful GraphQL queries
-
-It is primarily intended to help us dogfood DQM services and integrate DQM into
-our contract workflows (both Jupyter-based and batch), and secondarily (and prospectively)
-as a resource for clients who want to write their own code against DQM directly
-(perhaps as part of an Airflow graph).
-
+It supports a limited number of common use cases. (See below.)
 `cooper_pair` is *not* intended as a general-purpose integration library for GraphQL.
 Most useful GraphQL queries are *not* supported within the `cooper_pair` API.
 
@@ -24,24 +16,27 @@ independently.
 Wrapping a flexible GraphQL API in a rigid python library would completely defeat that purpose.
 
 Instead, think of `cooper_pair` as training wheels. It makes it easy to quickly connect
-to GraphQL, and some glue code for moving data around. It also provides a collection of example
-queries to get started in GraphQL.
+to GraphQL, and perform a few common functions. It also provides a collection of example
+queries to learn how to use GraphQL and the Allotrope API.
 
-If you're running basic, common queries against Superconductive's APIs, `cooper_pair` *might*
-support your use case. For anything else, exploration is strongly encouraged.
+In other words, `cooper-pair` can help you get started, but you will be able to get far more
+out of Allotrope once you learn to query it natively using GraphQL.
 
 ## Installation
+
+    cd cooper-pair
+    pip install .
+
+Or,
 
     pip install git+ssh://git@github.com/superconductive/cooper.git#egg=cooper_pair&subdirectory=pair
 
 ## Usage
 
-### Instantiating the API
+### Instantiate the API
 
     from cooper_pair import CooperPair
     pair = CooperPair()
-
-### Creating a new checkpoint
 
 ### Adding a new dataset
 
