@@ -217,11 +217,12 @@ class CooperPair(object):
         
         try:
             return self.client.execute(query_gql, variable_values=variables)
-        except Exception as inst:
-            print('ERRRRRRRRRRROOOOOOORRRRRRRR')
-            print(type(inst))
-            print(inst.args)
-            print(inst)
+        except RetryError:
+            self.transport.headers = dict(
+                self.transport.headers or {}, **{'X-Fullerene-Token': None})
+            self.login()
+            return self.client.execute(query_gql, variable_values=variables)
+
 
     def add_evaluation(self, dataset_id, checkpoint_id):
         """Add a new evaluation.
