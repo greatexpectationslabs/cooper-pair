@@ -218,6 +218,7 @@ class CooperPair(object):
         try:
             return self.client.execute(query_gql, variable_values=variables)
         except Exception as inst:
+            print('ERRRRRRRRRRROOOOOOORRRRRRRR')
             print(type(inst))
             print(inst.args)
             print(inst)
