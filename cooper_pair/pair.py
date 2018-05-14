@@ -217,7 +217,7 @@ class CooperPair(object):
         
         try:
             return self.client.execute(query_gql, variable_values=variables)
-        except RetryError:
+        except (requests.expectations.HTTPError, RetryError):
             self.transport.headers = dict(
                 self.transport.headers or {}, **{'X-Fullerene-Token': None})
             self.login()
