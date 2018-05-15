@@ -207,7 +207,6 @@ class CooperPair(object):
         Returns:
             A dict containing the parsed results of the query.
         """
-        self.login()
         if not unauthenticated:
             if not self.token:
                 warnings.warn(
@@ -216,7 +215,14 @@ class CooperPair(object):
 
         query_gql = gql(query)
         
-        return self.client.execute(query_gql, variable_values=variables)
+        try:
+            return self.client.execute(query_gql, variable_values=variables)
+        except (requests.exceptions.HTTPError, RetryError):
+            self.transport.headers = dict(
+                self.transport.headers or {}, **{'X-Fullerene-Token': None})
+            self._client = None
+            return self.client.execute(query_gql, variable_values=variables)
+
 
     def add_evaluation(self, dataset_id, checkpoint_id):
         """Add a new evaluation.
