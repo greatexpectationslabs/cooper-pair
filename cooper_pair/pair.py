@@ -1285,6 +1285,7 @@ class CooperPair(object):
                         node {
                             id
                             notificationType
+                            notifyOn
                             value
                         }
                     }
