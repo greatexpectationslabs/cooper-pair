@@ -81,7 +81,7 @@ def test_unauthenticated_query():
     with pytest.warns(UserWarning):
         pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
     with pytest.warns(UserWarning):
-        pair.add_evaluation(dataset_id=1, checkpoint_id=1)
+        pair.add_evaluation(dataset_id=1, expectation_suite_id=1)
 
 
 def test_bad_query():
@@ -90,7 +90,7 @@ def test_bad_query():
 
 
 def test_add_evaluation():
-    assert pair.add_evaluation(dataset_id=1, checkpoint_id=1)
+    assert pair.add_evaluation(dataset_id=1, expectation_suite_id=1)
 
 
 def test_add_dataset():
@@ -111,17 +111,17 @@ def test_upload_dataset():
         assert res
 
 
-def test_add_checkpoint():
-    response = pair.add_checkpoint(name='my cool checkpoint')
+def test_add_expectation_suite():
+    response = pair.add_expectation_suite(name='my cool expectation_suite')
     assert response
 
     #FIXME: Documentation needed: Why does this fail?
     with pytest.raises(AssertionError):
-        pair.add_checkpoint(name='my other cool checkpoint', autoinspect=True)
+        pair.add_expectation_suite(name='my other cool expectation_suite', autoinspect=True)
 
     #FIXME: Documentation needed: Why does this fail?
     with pytest.raises(AssertionError):
-        pair.add_checkpoint(name='my other cool checkpoint', dataset_id=1)
+        pair.add_expectation_suite(name='my other cool expectation_suite', dataset_id=1)
 
 
 def test_add_expectation():
@@ -129,7 +129,7 @@ def test_add_expectation():
         pair.add_expectation(1, 'expect_column_to_exist', {})
 
     assert pair.add_expectation(
-        checkpoint_id=1,
+        expectation_suite_id=1,
         expectation_type='expect_column_to_exist',
         expectation_kwargs='{}',
     )
@@ -174,98 +174,90 @@ def test_update_expectation():
         expectation_kwargs
 
 
-def test_get_checkpoint():
-    assert pair.get_checkpoint(2)
+def test_get_expectation_suite():
+    assert pair.get_expectation_suite(2)
 
 
-def test_update_checkpoint():
+def test_update_expectation_suite():
     with pytest.raises(AssertionError):
-        pair.update_checkpoint(2)
+        pair.update_expectation_suite(2)
     with pytest.raises(AssertionError):
-        pair.update_checkpoint(2, expectations=[], sections=[])
+        pair.update_expectation_suite(2, expectations=[], sections=[])
 
-    new_checkpoint = pair.add_checkpoint('my_cool_test_checkpoint')
-    new_checkpoint_id = new_checkpoint['addCheckpoint']['checkpoint']['id']
-    pair.update_checkpoint(new_checkpoint_id, autoinspection_status='pending')
+    new_expectation_suite = pair.add_expectation_suite('my_cool_test_expectation_suite')
+    new_expectation_suite_id = new_expectation_suite['addExpectationSuite']['expectationSuite']['id']
+    pair.update_expectation_suite(new_expectation_suite_id, autoinspection_status='pending')
 
-    checkpoint = pair.get_checkpoint(new_checkpoint_id)
-    assert checkpoint['checkpoint']['autoinspectionStatus'] == 'pending'
+    expectation_suite = pair.get_expectation_suite(new_expectation_suite_id)
+    assert expectation_suite['expectationSuite']['autoinspectionStatus'] == 'pending'
 
     #FIXME: Passing createdById should raise an exception in allotrope.
-    sections = [{
-        'name': 'my section',
-        'slug': 'my-section',
-        'sequenceNumber': 1,
-        # 'createdById': 1,
-        'questions': [{
-            'questionObj': json.dumps({'title': 'Placeholder'}),
+    expectations = [
             'expectation': {
                 # 'createdById': 1,
                 'expectationType': 'fuar',
                 'expectationKwargs': json.dumps({})
             },
-            'sequenceNumber': 1
-        }]
-    }]
+    ]
 
-    pair.update_checkpoint(new_checkpoint_id, sections=sections)
+    pair.update_expectation_suite(new_expectation_suite_id, expectations=expectations)
 
-    checkpoint = pair.get_checkpoint(new_checkpoint_id)
-    assert checkpoint['checkpoint']['sections']
-    sections = checkpoint['checkpoint']['sections']
-    assert sections['edges'][0]['node']['questions']
-    assert sections['edges'][0]['node']['questions']['edges'][0]['node']['expectation']['id']
+    expectation_suite = pair.get_expectation_suite(new_expectation_suite_id)
+    assert expectation_suite['expectationSuite']['expectations']
+    expectations = expectation_suite['expectationSuite']['expectations']
+    assert expectations['edges'][0]
+    assert expectations['edges'][0]['node']['expectation']['id']
 
     #FIXME: Passing createdById should raise an exception in allotrope.
-    expectations = [{
+    expectations_2 = [{
         # 'createdById': 1,
         'expectationType': 'boop',
         'expectationKwargs': "{}"
     }]
 
-    new_checkpoint = pair.add_checkpoint('my_other_cool_test_checkpoint')
-    new_checkpoint_id = new_checkpoint['addCheckpoint']['checkpoint']['id']
-    pair.update_checkpoint(new_checkpoint_id, expectations=expectations)
-    checkpoint = pair.get_checkpoint(new_checkpoint_id)
-    assert checkpoint['checkpoint']['expectations']['edges'][0]
+    new_expectation_suite = pair.add_expectation_suite('my_other_cool_test_expectation_suite')
+    new_expectation_suite_id = new_expectation_suite['addExpectationSuite']['expectationSuite']['id']
+    pair.update_expectation_suite(new_expectation_suite_id, expectations=expectations_2)
+    expectation_suite = pair.get_expectation_suite(new_expectation_suite_id)
+    assert expectation_suite['expectationSuite']['expectations']['edges'][0]
 
 
-def test_add_and_get_checkpoint_from_expectations_config_and_as_json():
-    checkpoint = pair.add_checkpoint_from_expectations_config(
+def test_add_and_get_expectation_suite_from_expectations_config_and_as_json():
+    expectation_suite = pair.add_expectation_suite_from_expectations_config(
         SAMPLE_EXPECTATIONS_CONFIG, 'foo')
 
-    assert checkpoint
+    assert expectation_suite
 
-    checkpoint_id = checkpoint['updateCheckpoint']['checkpoint']['id']
+    expectation_suite_id = expectation_suite['updateExpectationSuite']['expectationSuite']['id']
 
-    assert pair.get_checkpoint_as_expectations_config(
-        checkpoint_id) == SAMPLE_EXPECTATIONS_CONFIG
+    assert pair.get_expectation_suite_as_expectations_config(
+        expectation_suite_id) == SAMPLE_EXPECTATIONS_CONFIG
 
-    checkpoint = pair.get_checkpoint(checkpoint_id)
+    expectation_suite = pair.get_expectation_suite(expectation_suite_id)
 
-    expectation_id = checkpoint['checkpoint']['expectations']['edges'][0]['node']['id']
+    expectation_id = expectation_suite['expectationSuite']['expectations']['edges'][0]['node']['id']
 
     pair.update_expectation(expectation_id, is_activated=False)
 
-    res = pair.get_checkpoint_as_expectations_config(checkpoint_id)
+    res = pair.get_expectation_suite_as_expectations_config(expectation_suite_id)
 
     assert res != SAMPLE_EXPECTATIONS_CONFIG
     assert len(res['expectations']) == 1
 
-    json_res = json.loads(pair.get_checkpoint_as_json_string(checkpoint_id))
+    json_res = json.loads(pair.get_expectation_suite_as_json_string(expectation_suite_id))
 
     assert len(json_res['expectations']) == 1
     assert json_res['expectations'] != \
         SAMPLE_EXPECTATIONS_CONFIG['expectations']
 
-    res = pair.get_checkpoint_as_expectations_config(
-        checkpoint_id, include_inactive=True)
+    res = pair.get_expectation_suite_as_expectations_config(
+        expectation_suite_id, include_inactive=True)
 
     assert res == SAMPLE_EXPECTATIONS_CONFIG
     assert len(res['expectations']) == 2
 
-    json_res = json.loads(pair.get_checkpoint_as_json_string(
-        checkpoint_id, include_inactive=True))
+    json_res = json.loads(pair.get_expectation_suite_as_json_string(
+        expectation_suite_id, include_inactive=True))
 
     assert len(json_res['expectations']) == 2
     assert json_res['expectations'] == \
@@ -285,15 +277,15 @@ def test_add_dataset_from_file():
         os.chdir(pwd)
 
 
-def test_evaluate_checkpoint_on_file():
+def test_evaluate_expectation_suite_on_file():
     with pytest.raises(AttributeError):
-        pair.evaluate_checkpoint_on_file(2, StringIO())
+        pair.evaluate_expectation_suite_on_file(2, StringIO())
 
     pwd = os.getcwd()
     os.chdir(os.path.dirname(__file__))
     try:
         with open('etp_participant_data.csv', 'rb') as fd:
-            response = pair.evaluate_checkpoint_on_file(1, fd)
+            response = pair.evaluate_expectation_suite_on_file(1, fd)
             print(json.dumps(response, indent=2))
             assert response
             assert response["addEvaluation"]["evaluation"]["status"] == "created"
@@ -334,16 +326,16 @@ def test_add_dataset_from_pandas_df():
     finally:
         os.chdir(pwd)
 
-def test_evaluate_checkpoint_on_pandas_df():
+def test_evaluate_expectation_suite_on_pandas_df():
     pwd = os.getcwd()
     os.chdir(os.path.dirname(__file__))
     try:
         pandas_df = pd.read_csv('etp_participant_data.csv')
         with pytest.raises(AttributeError):
-            pair.evaluate_checkpoint_on_pandas_df(2, pandas_df)
+            pair.evaluate_expectation_suite_on_pandas_df(2, pandas_df)
 
         pandas_df.name = 'foo'
-        response = pair.evaluate_checkpoint_on_pandas_df(1, pandas_df)
+        response = pair.evaluate_expectation_suite_on_pandas_df(1, pandas_df)
         print(json.dumps(response, indent=2))
         assert response
         assert response["addEvaluation"]["evaluation"]["status"] == "created"
@@ -368,18 +360,18 @@ def test_evaluate_checkpoint_on_pandas_df():
     finally:
         os.chdir(pwd)
 
-def test_list_checkpoints():
-    response_1 = pair.list_checkpoints()
+def test_list_expectation_suites():
+    response_1 = pair.list_expectation_suites()
     assert response_1
-    assert len(response_1.get('allCheckpoints', [])) > 0
+    assert len(response_1.get('allExpectationSuites', [])) > 0
     # print( json.dumps(response_1, indent=2) )
 
-    response_2 = pair.list_checkpoints(complex=True)
+    response_2 = pair.list_expectation_suites(complex=True)
     assert response_2
-    assert len(response_2.get('allCheckpoints', [])) > 0
+    assert len(response_2.get('allExpectationSuites', [])) > 0
 
     assert len(response_1) == len(response_2)
-    for node in response_1["allCheckpoints"]["edges"]:
+    for node in response_1["allExpectationSuites"]["edges"]:
         print( node )
         print( node["node"].keys() )
         assert node["node"].keys() == set(["id", "name"])
@@ -410,7 +402,7 @@ class TestSomeStuff(unittest.TestCase):
         )
 
     def test_update_evaluation(self):
-        res = pair.add_evaluation(dataset_id=1, checkpoint_id=1)
+        res = pair.add_evaluation(dataset_id=1, expectation_suite_id=1)
         # print(json.dumps(res, indent=2))
 
         res2 = pair.update_evaluation(
