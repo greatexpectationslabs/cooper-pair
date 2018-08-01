@@ -277,7 +277,7 @@ class CooperPair(object):
                     evaluation {
                         id
                         datasetId
-                        expectationSuiteId
+                        checkpointId
                         createdById
                         createdBy {
                             id
@@ -290,7 +290,7 @@ class CooperPair(object):
                         organization {
                             id
                         }
-                        expectationSuite {
+                        checkpoint {
                             id
                             name
                         }
