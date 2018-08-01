@@ -193,13 +193,13 @@ class CooperPair(object):
             return self.client.execute(query_gql, variable_values=variables)
 
 
-    def add_evaluation(self, dataset_id, expectation_suite_id):
+    def add_evaluation(self, dataset_id, checkpoint_id):
         """Add a new evaluation.
 
         Args:
             dataset_id (int or str Relay id) -- The id of the dataset on which
                 to run the evaluation.
-            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite to
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
 
         Returns:
@@ -213,7 +213,7 @@ class CooperPair(object):
                     dataset {
                         id
                     }
-                    expectationSuite {
+                    checkpoint {
                         id
                     }
                     createdBy {
@@ -244,7 +244,7 @@ class CooperPair(object):
         variables={
             'evaluation': {
                 'datasetId': dataset_id,
-                'expectationSuiteId': expectation_suite_id,
+                'checkpointId': checkpoint_id,
             }
         })
 
