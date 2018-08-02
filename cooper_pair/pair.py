@@ -956,12 +956,12 @@ class CooperPair(object):
 
         return self.update_expectation_suite(expectation_suite_id, expectations=expectations)
 
-    def get_expectation_suite_as_expectations_config(
-            self, expectation_suite_id, include_inactive=False):
-        """Retrieve a expectation_suite as a great_expectations expectations config.
+    def get_checkpoint_as_expectations_config(
+            self, checkpoint_id, include_inactive=False):
+        """Retrieve a checkpoint as a great_expectations expectations config.
 
         Args:
-            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite to
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 retrieve
             include_inactive (bool) -- If true, evaluations whose isActivated
                 flag is false will be included in the JSON config (default:
@@ -971,17 +971,17 @@ class CooperPair(object):
             An expectations config dict as returned by
                 great_expectations.dataset.DataSet.get_expectations_config.
         """
-        expectation_suite = self.get_expectation_suite(expectation_suite_id)
+        checkpoint = self.get_checkpoint(checkpoint_id)
         if include_inactive:
             expectations = [
                 expectation['node']
                 for expectation
-                in expectation_suite['expectation_suite']['expectations']['edges']]
+                in checkpoint['checkpoint']['expectationSuite']['expectations']['edges']]
         else:
             expectations = [
                 expectation['node']
                 for expectation
-                in expectation_suite['expectation_suite']['expectations']['edges']
+                in checkpoint['checkpoint']['expectationSuite']['expectations']['edges']
                 if expectation['node']['isActivated']]
         expectations_config = {
             'meta': {'great_expectations.__version__': '0.3.0'},
