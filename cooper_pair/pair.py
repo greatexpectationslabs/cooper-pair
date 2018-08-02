@@ -719,7 +719,7 @@ class CooperPair(object):
         """
         return self.query("""
             query checkpointQuery($id: ID!) {
-                checkpoint(id: $id) {
+                checkpoint(id: $is) {
                     id
                     name
                     slug
@@ -729,13 +729,6 @@ class CooperPair(object):
                         firstName
                         lastName
                         email
-                    }
-                    organization {
-                        id
-                    }
-                    project {
-                        id
-                        name
                     }
                     expectationSuite {
                         expectations {
@@ -758,22 +751,8 @@ class CooperPair(object):
                                     organization {
                                         id
                                     }
-                                    expectationSuite {
-                                        id
-                                    }
                                 }
                             }
-                        }
-                    }
-                    sensor {
-                        id
-                        name
-                        sensorConfig
-                        dataSource {
-                            id
-                            name
-                            type
-                            credentialsReference
                         }
                     }
                 }
@@ -781,6 +760,70 @@ class CooperPair(object):
             """,
             variables={'id': checkpoint_id}
         )
+        # return self.query("""
+        #     query checkpointQuery($id: ID!) {
+        #         checkpoint(id: $id) {
+        #             id
+        #             name
+        #             slug
+        #             isActivated
+        #             createdBy {
+        #                 id
+        #                 firstName
+        #                 lastName
+        #                 email
+        #             }
+        #             organization {
+        #                 id
+        #             }
+        #             project {
+        #                 id
+        #                 name
+        #             }
+        #             expectationSuite {
+        #                 expectations {
+        #                     pageInfo {
+        #                         hasNextPage
+        #                         hasPreviousPage
+        #                         startCursor
+        #                         endCursor
+        #                     }
+        #                     edges {
+        #                         cursor
+        #                         node {
+        #                             id
+        #                             expectationType
+        #                             expectationKwargs
+        #                             isActivated
+        #                             createdBy {
+        #                                 id
+        #                             }
+        #                             organization {
+        #                                 id
+        #                             }
+        #                             expectationSuite {
+        #                                 id
+        #                             }
+        #                         }
+        #                     }
+        #                 }
+        #             }
+        #             sensor {
+        #                 id
+        #                 name
+        #                 sensorConfig
+        #                 dataSource {
+        #                     id
+        #                     name
+        #                     type
+        #                     credentialsReference
+        #                 }
+        #             }
+        #         }
+        #     }
+        #     """,
+        #     variables={'id': checkpoint_id}
+        # )
 
     def list_expectation_suites(self, complex=False):
         """Retrieve all existing expectation_suites.
