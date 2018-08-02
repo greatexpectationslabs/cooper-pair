@@ -27,6 +27,7 @@ MAX_RETRIES = 10
 
 DQM_GRAPHQL_URL = os.environ.get('DQM_GRAPHQL_URL')
 
+
 def make_gql_client(transport=None, schema=None, retries=MAX_RETRIES,
                     timeout=TIMEOUT):
     client = None
@@ -191,7 +192,6 @@ class CooperPair(object):
                 self.transport.headers or {}, **{'X-Fullerene-Token': None})
             self._client = None
             return self.client.execute(query_gql, variable_values=variables)
-
 
     def add_evaluation(self, dataset_id, checkpoint_id):
         """Add a new evaluation.
@@ -764,7 +764,6 @@ class CooperPair(object):
                                 }
                             }
                         }
-
                     }
                     sensor {
                         id
