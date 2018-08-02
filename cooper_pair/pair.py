@@ -719,7 +719,7 @@ class CooperPair(object):
         """
         return self.query("""
             query checkpointQuery($id: ID!) {
-                checkpoint(id: $is) {
+                checkpoint(id: $id) {
                     id
                     name
                     slug
