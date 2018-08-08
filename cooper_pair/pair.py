@@ -1140,27 +1140,30 @@ class CooperPair(object):
             separators=(',', ': '),
             sort_keys=True)
 
-    def list_configured_notifications(self):
-        """Retrieve all existing configured notifications.
+    def list_configured_notifications(self, checkpoint_id):
+        """Retrieve all existing configured notifications for 
+        a given checkpoint_id.
 
         Returns:
             A dict containing the parsed query.
         """
+
         return self.query("""
-            {
-                allConfiguredNotifications {
-                    edges {
-                        cursor
-                        node {
-                            id
-                            notificationType
-                            notifyOn
-                            value
+            query checkpointQuery($id: ID!) {
+                checkpoint(id: $id) {
+                    configuredNotifications {
+                        edges {
+                            node {
+                                id
+                                notificationType
+                                value
+                                notifyOn
+                            }
                         }
                     }
                 }
             }
-        """)
+            """, variables={'id': checkpoint_id})
 
     def list_datasets(self):
         return self.query("""{
