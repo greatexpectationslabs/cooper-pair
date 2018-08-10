@@ -42,9 +42,9 @@ def test_version():
     assert __version__
 
 
-#FIXME: This test runs very slowly
+# FIXME: This test runs very slowly
 def test_init():
-    assert pair.client #This is the slow line.
+    assert pair.client  #This is the slow line.
     assert pair.transport
     pass
 
