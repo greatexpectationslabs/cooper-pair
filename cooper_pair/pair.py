@@ -385,7 +385,7 @@ class CooperPair(object):
             """,
             variables={
                 'dataset': {
-                    'locator_dict': {'filename': filename},
+                    'locator_dict': json.dumps({'filename': filename}),
                     'projectId': project_id,
                 }
             }
