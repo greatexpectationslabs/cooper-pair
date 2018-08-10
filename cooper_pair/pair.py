@@ -284,7 +284,8 @@ class CooperPair(object):
                         }
                         dataset {
                             id
-                            filename
+                            label
+                            locator_dict
                         }
                         organizationId
                         organization {
@@ -331,14 +332,14 @@ class CooperPair(object):
             query datasetQuery($id: ID!) {
                 dataset(id: $id) {
                     id
+                    label
                     project {
                         id
                     }
                     createdBy {
                         id
                     }
-                    filename
-                    s3Key
+                    locator_dict
                     organization {
                         id
                     }
@@ -367,15 +368,14 @@ class CooperPair(object):
                 addDataset(input: $dataset) {
                 dataset {
                     id
+                    label
                     project {
                     id
                     }
                     createdBy {
                     id
                     }
-                    filename
-                    s3Url
-                    s3Key
+                    locator_dict
                     organization {
                     id
                     }
@@ -385,7 +385,7 @@ class CooperPair(object):
             """,
             variables={
                 'dataset': {
-                    'filename': filename,
+                    'locator_dict': {'filename': filename},
                     'projectId': project_id,
                 }
             }
@@ -1000,7 +1000,7 @@ class CooperPair(object):
             project_id
         )
 
-        presigned_post = dataset['addDataset']['dataset']['s3Url']
+        presigned_post = dataset['addDataset']['dataset']['locator_dict']['s3Url']
 
         self.upload_dataset(presigned_post, fd)
 
@@ -1171,8 +1171,8 @@ class CooperPair(object):
                 edges {
                     node{
                         id
-                        s3Key
-                        filename
+                        label
+                        locator_dict
                     }
                 }
             }
