@@ -285,7 +285,7 @@ class CooperPair(object):
                         dataset {
                             id
                             label
-                            locator_dict
+                            locatorDict
                         }
                         organizationId
                         organization {
@@ -339,7 +339,7 @@ class CooperPair(object):
                     createdBy {
                         id
                     }
-                    locator_dict
+                    locatorDict
                     organization {
                         id
                     }
@@ -375,7 +375,7 @@ class CooperPair(object):
                     createdBy {
                     id
                     }
-                    locator_dict
+                    locatorDict
                     organization {
                     id
                     }
@@ -385,7 +385,7 @@ class CooperPair(object):
             """,
             variables={
                 'dataset': {
-                    'locator_dict': json.dumps({'filename': filename}),
+                    'locatorDict': json.dumps({'filename': filename}),
                     'projectId': project_id,
                 }
             }
@@ -1000,7 +1000,7 @@ class CooperPair(object):
             project_id
         )
 
-        presigned_post = dataset['addDataset']['dataset']['locator_dict']['s3Url']
+        presigned_post = dataset['addDataset']['dataset']['locatorDict']['s3Url']
 
         self.upload_dataset(presigned_post, fd)
 
@@ -1172,7 +1172,7 @@ class CooperPair(object):
                     node{
                         id
                         label
-                        locator_dict
+                        locatorDict
                     }
                 }
             }
