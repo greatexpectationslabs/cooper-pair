@@ -931,8 +931,13 @@ class CooperPair(object):
         expectation_suite_res = self.add_expectation_suite(name)
         expectation_suite_id = expectation_suite_res['addExpectationSuite']['expectationSuite']['id']
         expectations = expectations_config['expectations']
-
-        return self.update_expectation_suite(expectation_suite_id, expectations=expectations)
+        munged_expectations = []
+        for expectation in expectations:
+            munged_expectations.append({
+                'expectationType': expectation['expectation_type'],
+                'expectationKwargs': json.dumps(expectation['kwargs'])
+            })
+        return self.update_expectation_suite(expectation_suite_id, expectations=munged_expectations)
 
     def get_checkpoint_as_expectations_config(
             self, checkpoint_id, include_inactive=False):
