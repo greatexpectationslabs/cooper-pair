@@ -446,7 +446,6 @@ class CooperPair(object):
                         name
                         slug
                         autoinspectionStatus
-                        }
                         createdBy {
                         id
                         }
