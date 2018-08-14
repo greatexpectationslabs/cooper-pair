@@ -872,8 +872,8 @@ class CooperPair(object):
                 autoinspection_status
 
         result = self.query("""
-                mutation($updateExpectationSuite: UpdateExpectationSuiteInput!) {
-                    updateExpectationSuite(input: $updateExpectationSuite) {
+            mutation updateExpectationSuiteMutation($expectationSuite: UpdateExpectationSuiteInput!) {
+                updateExpectationSuite(input: $expectationSuite) {
                     expectationSuite {
                         id
                         expectations {
@@ -903,8 +903,8 @@ class CooperPair(object):
                             }
                         }
                     }
-                    }
                 }
+            }
             """,
             variables=variables
         )
