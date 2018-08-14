@@ -476,7 +476,8 @@ class CooperPair(object):
                 'slug': generate_slug(name),
                 'autoinspect': autoinspect,
                 'datasetId': dataset_id
-            }})
+            }
+        })
 
     def get_expectation(self, expectation_id):
         """Retrieve an expectation by its id.
@@ -928,7 +929,7 @@ class CooperPair(object):
         # should rework the addExpectationSuite mutation to accept nested objects
 
         expectation_suite_res = self.add_expectation_suite(name)
-        expectation_suite_id = expectation_suite_res['addExpectationSuite']['expectation_suite']['id']
+        expectation_suite_id = expectation_suite_res['addExpectationSuite']['expectationSuite']['id']
         expectations = expectations_config['expectations']
 
         return self.update_expectation_suite(expectation_suite_id, expectations=expectations)
