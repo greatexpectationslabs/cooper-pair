@@ -861,15 +861,15 @@ class CooperPair(object):
             'sections.'
 
         variables = {
-            'updateExpectationSuite': {
+            'expectationSuite': {
                 'id': expectation_suite_id
             }
         }
 
         if expectations is not None:
-            variables['updateExpectationSuite']['expectations'] = expectations
+            variables['expectationSuite']['expectations'] = expectations
         if autoinspection_status is not None:
-            variables['updateExpectationSuite']['autoinspectionStatus'] = \
+            variables['expectationSuite']['autoinspectionStatus'] = \
                 autoinspection_status
 
         result = self.query("""
