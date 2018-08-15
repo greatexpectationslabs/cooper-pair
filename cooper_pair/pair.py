@@ -433,7 +433,7 @@ class CooperPair(object):
         Returns:
             A dict containing the parsed results of the mutation.
         """
-        # TODO: implement nested object creation for addCheckpoint
+        # TODO: implement nested object creation for addExpectationSuite
         if autoinspect:
             assert dataset_id, 'Must pass a dataset_id when autoinspecting.'
         else:
