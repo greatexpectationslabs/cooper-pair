@@ -193,7 +193,7 @@ class CooperPair(object):
             self._client = None
             return self.client.execute(query_gql, variable_values=variables)
 
-    def add_evaluation(self, dataset_id, checkpoint_id):
+    def add_evaluation(self, dataset_id, checkpoint_id, delay_evaluation=False):
         """Add a new evaluation.
 
         Args:
@@ -245,6 +245,7 @@ class CooperPair(object):
             'evaluation': {
                 'datasetId': dataset_id,
                 'checkpointId': checkpoint_id,
+                'delayEvaluation': delay_evaluation
             }
         })
 
