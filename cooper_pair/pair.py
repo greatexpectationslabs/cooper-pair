@@ -708,6 +708,51 @@ class CooperPair(object):
             variables={'id': expectation_suite_id}
         )
 
+    def add_checkpoint(self, name, is_activated=True, expectation_suite_id=None, sensor_id=None):
+        """
+        Add a checkpoint.
+        :param name: Name of checkpoint
+        :param is_activated: boolean
+        :param expectation_suite_id: The id of corresponding expectation suite
+        :param sensor_id: The id of corresponding sensor
+        :return: A dict with parsed checkpoint (see query for structure)
+        """
+
+        return self.query("""
+            mutation addCheckpointMutation($checkpoint: AddCheckpointInput!) {
+                addCheckpoint(input: $checkpoint) {
+                    checkpoint {
+                        id
+                        name
+                        slug
+                        isActivated
+                        sensor {
+                            id
+                        }
+                        expectationSuite {
+                            id
+                        }
+                        createdBy {
+                            id
+                        }
+                        organization {
+                            id
+                        }
+                    }
+                }
+            }
+            """,
+            variables={
+                'checkpoint': {
+                    'name': name,
+                    'slug': generate_slug(name),
+                    'isActivated': is_activated,
+                    'expectationSuiteId': expectation_suite_id,
+                    'sensorId': sensor_id
+                }
+            }
+        )
+
     def get_checkpoint(self, checkpoint_id):
         """Retrieve an existing checkpoint.
 
