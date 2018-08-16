@@ -220,7 +220,9 @@ class CooperPair(object):
             dataset_id=None,
             checkpoint_id=None,
             delay_evaluation=False,
-            results=None):
+            results=None,
+            status=None
+    ):
         """Add a new evaluation.
 
         Args:
@@ -232,6 +234,13 @@ class CooperPair(object):
         Returns:
             A dict containing the parsed results of the mutation.
         """
+        if results is not None:
+            variables['updateEvaluation']['results'] = results
+            if all([x['success'] for x in results]):
+                status = 'success'
+            else:
+                status = 'failed'
+                
         return self.query("""
             mutation addEvaluationMutation($evaluation: AddEvaluationInput!) {
                 addEvaluation(input: $evaluation) {
@@ -272,7 +281,9 @@ class CooperPair(object):
             'evaluation': {
                 'datasetId': dataset_id,
                 'checkpointId': checkpoint_id,
-                'delayEvaluation': delay_evaluation
+                'delayEvaluation': delay_evaluation,
+                'results': results,
+                'status': status
             }
         })
 
@@ -296,6 +307,11 @@ class CooperPair(object):
         }
         if results is not None:
             variables['updateEvaluation']['results'] = results
+            if all([x['success'] for x in results]):
+                status = 'success'
+            else:
+                status = 'failed'
+            
         if status is not None:
             variables['updateEvaluation']['status'] = status
 
