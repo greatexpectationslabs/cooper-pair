@@ -311,6 +311,14 @@ class CooperPair(object):
                         edges {
                             node {
                                 id
+                                success
+                                summaryObj
+                                expectationType
+                                expectationKwargs
+                                raisedException
+                                exceptionTraceback
+                                evaluationId
+                                expectationId
                             }
                         }
                     }
