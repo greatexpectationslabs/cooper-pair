@@ -617,6 +617,26 @@ class CooperPair(object):
             })
             
         return munged_expectations
+        
+        
+    def munge_ge_expectations_list(self, expectations):
+        """
+        Convert a Great Expectations expectation list to a list
+        of expectations that can be consumed by Checkpoints
+        :param expectations_config: expectations_config as returned from
+        Great Expectations
+        :return:
+        """
+        munged_expectations = []
+        
+        for expectation in expectations:
+            munged_expectations.append({
+                'expectationType': expectation['expectation_type'],
+                'expectationKwargs': json.dumps(expectation['kwargs'])
+            })
+        
+        return munged_expectations
+    
     
     def add_expectation(
             self,
@@ -1101,6 +1121,24 @@ class CooperPair(object):
             A dict containing the parsed expectation_suite.
         """
         expectations = self.munge_ge_expectations_config(expectations_config)
+        return self.add_expectation_suite(name=name, expectations=expectations)
+        
+    def add_expectation_suite_from_ge_expectations_list(
+        self, expectations_list, name):
+        """Create a new expectation_suite from a great_expectations expectations
+            list.
+    
+        Args:
+            expectations_list (list) - A list of Great Expectations
+                formatted expectations
+                Note that this is not validated here or on the server side --
+                failures will occur at evaluation time.
+            name (str) - The name of the expectation_suite to create.
+    
+        Returns:
+            A dict containing the parsed expectation_suite.
+        """
+        expectations = self.munge_ge_expectations_list(expectations_list)
         return self.add_expectation_suite(name=name, expectations=expectations)
 
     def get_checkpoint_as_expectations_config(
