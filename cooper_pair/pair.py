@@ -771,11 +771,19 @@ class CooperPair(object):
             variables={'id': expectation_suite_id}
         )
 
-    def add_checkpoint(self, name, is_activated=True, expectation_suite_id=None, sensor_id=None):
+    def add_checkpoint(
+            self,
+            name,
+            is_activated=True,
+            slack_webhook=None,
+            expectation_suite_id=None,
+            sensor_id=None):
         """
         Add a checkpoint.
         :param name: Name of checkpoint
         :param is_activated: boolean
+        :param slack_webhook: optional slack webhook address to create
+            condigured_notification on checkpoint creation
         :param expectation_suite_id: The id of corresponding expectation suite
         :param sensor_id: The id of corresponding sensor
         :return: A dict with parsed checkpoint (see query for structure)
@@ -801,6 +809,20 @@ class CooperPair(object):
                         organization {
                             id
                         }
+                        configuredNotifications {
+                            pageInfo {
+                                hasNextPage
+                                hasPreviousPage
+                                startCursor
+                                endCursor
+                            }
+                            edges {
+                                cursor
+                                node {
+                                    id
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -811,7 +833,8 @@ class CooperPair(object):
                     'slug': generate_slug(name),
                     'isActivated': is_activated,
                     'expectationSuiteId': expectation_suite_id,
-                    'sensorId': sensor_id
+                    'sensorId': sensor_id,
+                    'slackWebhook': slack_webhook
                 }
             }
         )
