@@ -306,7 +306,7 @@ class CooperPair(object):
                     organization {
                         id
                     }
-                    updateAt
+                    updatedAt
                     results {
                         edges {
                             node {
