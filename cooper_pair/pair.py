@@ -286,6 +286,40 @@ class CooperPair(object):
             }
         })
 
+    def get_evaluation(self, evaluation_id):
+        return self.query("""
+            query evaluationQuery($id: ID!) {
+                evaluation(id: $id) {
+                    id
+                    status
+                    checkpointId
+                    checkpoint {
+                        name
+                    }
+                    dataset {
+                        id
+                        label
+                    }
+                    createdBy {
+                        id
+                    }
+                    organization {
+                        id
+                    }
+                    updateAt
+                    results {
+                        edges {
+                            node {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+            """,
+            variables={'id': evaluation_id}
+        )
+        
     def update_evaluation(self, evaluation_id, status=None, results=None):
         """Update an evaluation.
 
