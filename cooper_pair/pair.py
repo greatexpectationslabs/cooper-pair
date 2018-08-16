@@ -193,7 +193,34 @@ class CooperPair(object):
             self._client = None
             return self.client.execute(query_gql, variable_values=variables)
 
-    def add_evaluation(self, dataset_id, checkpoint_id, delay_evaluation=False):
+    def munge_ge_evaluation_results(self, ge_results):
+        """
+            Unpack the expectation object to match the semi-flattened structure used by Allotrope.
+            """
+        return [
+            {
+                'success': result['success'],
+            
+                'expectationType': result['expectation_config']['expectation_type'],
+                'expectationKwargs': json.dumps(result['expectation_config']['kwargs']),
+            
+                'raisedException': result['exception_info']['raised_exception'],
+                'exceptionTraceback': result['exception_info']['exception_traceback'],
+                # 'exceptionMessage': result['exception_info']['exception_message'], #FIXME: Allotrope needs a new DB field to store this in
+            
+                'summaryObj': (
+                    json.dumps(result['result'])
+                    if 'result' in result else json.dumps({})
+                )
+            }
+            for result in ge_results]
+    
+    def add_evaluation(
+            self,
+            dataset_id=None,
+            checkpoint_id=None,
+            delay_evaluation=False,
+            results=None):
         """Add a new evaluation.
 
         Args:
