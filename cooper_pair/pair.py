@@ -393,7 +393,7 @@ class CooperPair(object):
             variables={'id': dataset_id}
         )
 
-    def add_dataset(self, filename, project_id):
+    def add_dataset(self, filename, project_id, label=None):
         """Add a new dataset object.
 
         Users should probably not call this function directly. Instead,
@@ -431,6 +431,7 @@ class CooperPair(object):
                 'dataset': {
                     'locatorDict': json.dumps({'filename': filename}),
                     'projectId': project_id,
+                    'label': label
                 }
             }
         )
