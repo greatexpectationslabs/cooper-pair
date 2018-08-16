@@ -556,6 +556,25 @@ class CooperPair(object):
             variables={'id': expectation_id}
         )
 
+    def munge_ge_expectations_config(self, expectations_config):
+        """
+        Convert a Great Expectations expectations_config into a list
+        of expectations that can be consumed by Checkpoints
+        :param expectations_config: expectations_config as returned from
+        Great Expectations
+        :return:
+        """
+        expectations = expectations_config['expectations']
+        munged_expectations = []
+        
+        for expectation in expectations:
+            munged_expectations.append({
+                'expectationType': expectation['expectation_type'],
+                'expectationKwargs': json.dumps(expectation['kwargs'])
+            })
+            
+        return munged_expectations
+    
     def add_expectation(
             self,
             expectation_suite_id,
