@@ -495,7 +495,7 @@ class CooperPair(object):
         form_data = parse_qs(s3_querystring)
         return requests.post(s3_url, data=form_data, files={'file': fd})
 
-    def add_expectation_suite(self, name, autoinspect=False, dataset_id=None):
+    def add_expectation_suite(self, name, autoinspect=False, dataset_id=None, expectations=None):
         """Add a new expectation_suite.
 
         Users should probably not call this function directly. Instead,
@@ -561,7 +561,8 @@ class CooperPair(object):
                 'name': name,
                 'slug': generate_slug(name),
                 'autoinspect': autoinspect,
-                'datasetId': dataset_id
+                'datasetId': dataset_id,
+                'expectations': expectations
             }
         })
 
@@ -596,6 +597,7 @@ class CooperPair(object):
             """,
             variables={'id': expectation_id}
         )
+
 
     def munge_ge_expectations_config(self, expectations_config):
         """
@@ -1098,13 +1100,8 @@ class CooperPair(object):
         Returns:
             A dict containing the parsed expectation_suite.
         """
-        # FIXME: right now this makes two calls, which is not ideal -- we
-        # should rework the addExpectationSuite mutation to accept nested objects
-
-        expectation_suite_res = self.add_expectation_suite(name)
-        expectation_suite_id = expectation_suite_res['addExpectationSuite']['expectationSuite']['id']
         expectations = self.munge_ge_expectations_config(expectations_config)
-        return self.update_expectation_suite(expectation_suite_id, expectations=expectations)
+        return self.add_expectation_suite(name=name, expectations=expectations)
 
     def get_checkpoint_as_expectations_config(
             self, checkpoint_id, include_inactive=False):
