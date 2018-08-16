@@ -235,7 +235,6 @@ class CooperPair(object):
             A dict containing the parsed results of the mutation.
         """
         if results is not None:
-            variables['updateEvaluation']['results'] = results
             if all([x['success'] for x in results]):
                 status = 'success'
             else:
