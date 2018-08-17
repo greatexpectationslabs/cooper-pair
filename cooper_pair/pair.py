@@ -21,7 +21,7 @@ from gql.transport.requests import RequestsHTTPTransport
 from graphql import (parse, introspection_query, build_client_schema)
 
 
-TIMEOUT = 2
+TIMEOUT = 5
 
 MAX_RETRIES = 10
 
