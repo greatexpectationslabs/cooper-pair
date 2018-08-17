@@ -2,3 +2,4 @@ pytest-cov==2.5.1
 pytest==3.2.5
 gql==0.1.0
 requests==2.18.4
+great_expectations==0.4.1
