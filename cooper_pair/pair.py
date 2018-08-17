@@ -12,8 +12,8 @@ try:  # pragma: nocover
 except ImportError:  # pragma: nocover
     from urlparse import parse_qs
 import warnings
-
 import requests
+import great_expectations as ge
 
 from gql import gql, Client
 from gql.client import RetryError
@@ -955,6 +955,127 @@ class CooperPair(object):
             """,
             variables={'id': checkpoint_id}
         )
+    
+    def get_checkpoint_by_name(self, checkpoint_name):
+        """Retrieve an existing checkpoint by name.
+
+        Args:
+            name (str) -- The name of the checkpoint
+                to retrieve
+
+        Returns:
+            A dict containing the parsed checkpoint.
+        """
+        return self.query("""
+            query checkpointQuery($name: String!) {
+                checkpoint(name: $name) {
+                    id
+                    name
+                    slug
+                    isActivated
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    expectationSuite {
+                        expectations {
+                            pageInfo {
+                                hasNextPage
+                                hasPreviousPage
+                                startCursor
+                                endCursor
+                            }
+                            edges {
+                                cursor
+                                node {
+                                    id
+                                    expectationType
+                                    expectationKwargs
+                                    isActivated
+                                    createdBy {
+                                        id
+                                    }
+                                    organization {
+                                        id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            """,
+            variables={'name': checkpoint_name}
+        )
+
+    def setup_checkpoint_from_ge_expectations_config(
+            self, checkpoint_name, expectations_config, slack_webhook=None):
+        
+        """
+        First creates a new expectation suite, which generates new default checkpoint, sensor,
+        and datasource for manual file upload. After a new expectation suite is created, the new
+        checkpoint is created (and optionally, a new Slack notification)
+        :param checkpoint_name:
+        :param expectations_config:
+        :param slack_webhook:
+        :return:
+        """
+        new_expectation_suite = self.add_expectation_suite_from_expectations_config(
+            name=checkpoint_name, expectations_config=expectations_config)
+        new_expectation_suite_id = new_expectation_suite['addExpectationSuite']['expectationSuite']['id']
+        return self.add_checkpoint(
+            name=checkpoint_name, expectation_suite_id=new_expectation_suite_id, slack_webhook=slack_webhook
+        )
+        
+    def setup_checkpoint_from_ge_expectations_list(
+            self, checkpoint_name, expectations_list, slack_webhook=None):
+        """
+        First creates a new expectation suite, which generates new default checkpoint, sensor,
+        and datasource for manual file upload. After a new expectation suite is created, the new
+        checkpoint is created (and optionally, a new Slack notification)
+        :param checkpoint_name:
+        :param expectations_list:
+        :param slack_webhook:
+        :return:
+        """
+        new_expectation_suite = self.add_expectation_suite_from_ge_expectations_list(
+            name=checkpoint_name, expectations_list=expectations_list)
+        new_expectation_suite_id = new_expectation_suite['addExpectationSuite']['expectationSuite']['id']
+        return self.add_checkpoint(
+            name=checkpoint_name, expectation_suite_id=new_expectation_suite_id, slack_webhook=slack_webhook
+        )
+    
+    def validate_pandas_df_against_checkpoint(
+            self,
+            pandas_df,
+            validation_identifier,
+            checkpoint_id=None,
+            checkpoint_name=None):
+        """
+        
+        :param pandas_df:
+        :param validation_identifier:
+        :param checkpoint_id:
+        :param checkpoint_name:
+        :return:
+        """
+        if not checkpoint_id:
+            checkpoint_id = self.get_checkpoint_by_name(checkpoint_name)['checkpoint']['id']
+        expectations_config = self.get_checkpoint_as_expectations_config(
+            checkpoint_id=checkpoint_id, checkpoint_name=checkpoint_name)
+        results = ge.validate(df=pandas_df, expectations_config=expectations_config)['results']
+        munged_results = self.munge_ge_evaluation_results(ge_results=results)
+        new_dataset = self.add_dataset(project_id=1, label=validation_identifier)
+        new_dataset_id = new_dataset['addDataset']['dataset']['id']
+        return self.add_evaluation(
+            dataset_id=new_dataset_id,
+            checkpoint_id=checkpoint_id,
+            delay_evaluation=True,
+            results=munged_results
+        )
+        
 
     def list_expectation_suites(self, complex=False):
         """Retrieve all existing expectation_suites.
