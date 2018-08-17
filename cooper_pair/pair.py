@@ -1142,7 +1142,7 @@ class CooperPair(object):
         return self.add_expectation_suite(name=name, expectations=expectations)
 
     def get_checkpoint_as_expectations_config(
-            self, checkpoint_id, include_inactive=False):
+            self, checkpoint_id=None, checkpoint_name=None, include_inactive=False):
         """Retrieve a checkpoint as a great_expectations expectations config.
 
         Args:
@@ -1156,7 +1156,12 @@ class CooperPair(object):
             An expectations config dict as returned by
                 great_expectations.dataset.DataSet.get_expectations_config.
         """
-        checkpoint = self.get_checkpoint(checkpoint_id)
+    
+        if checkpoint_id:
+            checkpoint = self.get_checkpoint(checkpoint_id)
+        else:
+            checkpoint = self.get_checkpoint_by_name(checkpoint_name)
+    
         if include_inactive:
             expectations = [
                 expectation['node']
