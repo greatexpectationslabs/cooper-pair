@@ -219,6 +219,7 @@ class CooperPair(object):
             self,
             dataset_id=None,
             checkpoint_id=None,
+            checkpoint_name=None,
             delay_evaluation=False,
             results=None,
             status=None
@@ -280,6 +281,7 @@ class CooperPair(object):
             'evaluation': {
                 'datasetId': dataset_id,
                 'checkpointId': checkpoint_id,
+                'checkpointName': checkpoint_name,
                 'delayEvaluation': delay_evaluation,
                 'results': results,
                 'status': status
