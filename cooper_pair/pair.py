@@ -1063,20 +1063,24 @@ class CooperPair(object):
         :param checkpoint_name:
         :return:
         """
+        if not checkpoint_id and not checkpoint_name:
+            raise ValueError('must provide checkpoint_id or checkpoint_name')
         if not checkpoint_id:
             checkpoint_id = self.get_checkpoint_by_name(checkpoint_name)['checkpoint']['id']
         expectations_config = self.get_checkpoint_as_expectations_config(
             checkpoint_id=checkpoint_id, checkpoint_name=checkpoint_name)
-        results = ge.validate(df=pandas_df, expectations_config=expectations_config)['results']
+        ge_results = ge.validate(df=pandas_df, expectations_config=expectations_config)
+        results = ge_results['results']
         munged_results = self.munge_ge_evaluation_results(ge_results=results)
         new_dataset = self.add_dataset(project_id=1, label=validation_identifier)
         new_dataset_id = new_dataset['addDataset']['dataset']['id']
-        return self.add_evaluation(
+        self.add_evaluation(
             dataset_id=new_dataset_id,
             checkpoint_id=checkpoint_id,
             delay_evaluation=True,
             results=munged_results
         )
+        return ge_results
         
 
     def list_expectation_suites(self, complex=False):
