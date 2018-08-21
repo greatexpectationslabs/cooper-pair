@@ -416,7 +416,11 @@ class CooperPair(object):
             checkpoint_id = self.get_checkpoint_by_name(checkpoint_name)['checkpoint']['id']
         expectations_config = self.get_checkpoint_as_expectations_config(
             checkpoint_id=checkpoint_id, checkpoint_name=checkpoint_name)
-        ge_results = ge.validate(df=pandas_df, expectations_config=expectations_config)
+        ge_results = ge.validate(
+            df=pandas_df,
+            expectations_config=expectations_config,
+            result_format="SUMMARY",
+            catch_exceptions=True)
         results = ge_results['results']
         munged_results = self.munge_ge_evaluation_results(ge_results=results)
         new_dataset = self.add_dataset(project_id=1, label=dataset_label)
