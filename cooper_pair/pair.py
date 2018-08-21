@@ -215,6 +215,48 @@ class CooperPair(object):
             }
             for result in ge_results]
     
+    def get_evaluation(self, evaluation_id):
+        return self.query("""
+            query evaluationQuery($id: ID!) {
+                evaluation(id: $id) {
+                    id
+                    status
+                    checkpointId
+                    checkpoint {
+                        name
+                    }
+                    dataset {
+                        id
+                        label
+                    }
+                    createdBy {
+                        id
+                    }
+                    organization {
+                        id
+                    }
+                    updatedAt
+                    results {
+                        edges {
+                            node {
+                                id
+                                success
+                                summaryObj
+                                expectationType
+                                expectationKwargs
+                                raisedException
+                                exceptionTraceback
+                                evaluationId
+                                expectationId
+                            }
+                        }
+                    }
+                }
+            }
+            """,
+            variables={'id': evaluation_id}
+        )
+    
     def add_evaluation(
             self,
             dataset_id=None,
@@ -287,51 +329,109 @@ class CooperPair(object):
                 'status': status
             }
         })
+    
+    def evaluate_expectation_suite_on_pandas_df(
+            self,
+            expectation_suite_id,
+            pandas_df,
+            filename=None,
+            project_id=None):
+        """Evaluate a expectation_suite on a pandas.DataFrame.
 
-    def get_evaluation(self, evaluation_id):
-        return self.query("""
-            query evaluationQuery($id: ID!) {
-                evaluation(id: $id) {
-                    id
-                    status
-                    checkpointId
-                    checkpoint {
-                        name
-                    }
-                    dataset {
-                        id
-                        label
-                    }
-                    createdBy {
-                        id
-                    }
-                    organization {
-                        id
-                    }
-                    updatedAt
-                    results {
-                        edges {
-                            node {
-                                id
-                                success
-                                summaryObj
-                                expectationType
-                                expectationKwargs
-                                raisedException
-                                exceptionTraceback
-                                evaluationId
-                                expectationId
-                            }
-                        }
-                    }
-                }
-            }
-            """,
-            variables={'id': evaluation_id}
+        Args:
+            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite to
+                evaluate.
+            pandas_df (pandas.DataFrame) -- The data frame on which to
+                evaluate the expectation_suite.
+
+        Kwargs:
+            filename (str) -- The filename to associate with the dataset
+                (default: None, the name attribute of the pandas_df argument
+                will be used).
+
+        Returns:
+            A dict representation of the evaluation.
+        """
+        expectation_suite = self.get_expectation_suite(expectation_suite_id)
+        expectation_suite_id = expectation_suite['expectation_suite']['id']
+        dataset = self.add_dataset_from_pandas_df(
+            pandas_df,
+            project_id,
+            filename=filename)
+        return self.add_evaluation(
+            dataset['dataset']['id'],
+            expectation_suite_id
         )
-        
+
+    def evaluate_expectation_suite_on_file(
+            self,
+            expectation_suite_id,
+            fd,
+            filename=None,
+            project_id=None):
+        """Evaluate a expectation_suite on a file.
+
+        Args:
+            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite to
+                evaluate.
+            fd (file-like) -- A file descriptor or file-like object to
+                evaluate, opened as 'rb'.
+
+        Kwargs:
+            filename (str) -- The filename to associate with the dataset
+                (default: None, the name attribute of the pandas_df argument
+                will be used).
+
+        Returns:
+            A dict representation of the evaluation.
+        """
+        expectation_suite = self.get_expectation_suite(expectation_suite_id)
+        expectation_suite_id = expectation_suite['expectation_suite']['id']
+        dataset = self.add_dataset_from_file(
+            fd,
+            project_id,
+            filename=filename)
+        return self.add_evaluation(
+            dataset['dataset']['id'],
+            expectation_suite_id
+        )
+
+    def validate_pandas_df_against_checkpoint(
+            self,
+            pandas_df,
+            dataset_label,
+            checkpoint_id=None,
+            checkpoint_name=None):
+        """
+
+        :param pandas_df:
+        :param dataset_label:
+        :param checkpoint_id:
+        :param checkpoint_name:
+        :return:
+        """
+        if not checkpoint_id and not checkpoint_name:
+            raise ValueError('must provide checkpoint_id or checkpoint_name')
+        if not checkpoint_id:
+            checkpoint_id = self.get_checkpoint_by_name(checkpoint_name)['checkpoint']['id']
+        expectations_config = self.get_checkpoint_as_expectations_config(
+            checkpoint_id=checkpoint_id, checkpoint_name=checkpoint_name)
+        ge_results = ge.validate(df=pandas_df, expectations_config=expectations_config)
+        results = ge_results['results']
+        munged_results = self.munge_ge_evaluation_results(ge_results=results)
+        new_dataset = self.add_dataset(project_id=1, label=dataset_label)
+        new_dataset_id = new_dataset['addDataset']['dataset']['id']
+        self.add_evaluation(
+            dataset_id=new_dataset_id,
+            checkpoint_id=checkpoint_id,
+            delay_evaluation=True,
+            results=munged_results
+        )
+        return ge_results
+    
     def update_evaluation(self, evaluation_id, status=None, results=None):
-        """Update an evaluation.
+        """
+        Update an evaluation.
 
         Args:
             evaluation_id (int or str Relay id) -- The id of the evaluation
@@ -402,8 +502,7 @@ class CooperPair(object):
                     }
                 }
             }
-            """
-            , variables=variables)
+            """, variables=variables)
 
     def get_dataset(self, dataset_id):
         """Retrieve a dataset by its id.
@@ -479,6 +578,70 @@ class CooperPair(object):
             }
         )
 
+    def add_dataset_from_file(
+            self, fd, project_id, filename=None):
+        """Add a new dataset from a file or file-like object.
+
+        Args:
+            fd (file-like) -- A file descriptor or file-like object to add
+                as a new dataset, opened as 'rb'.
+            project_id (int or str Relay id) -- The id of the project to which
+                the dataset belongs.
+
+        Kwargs:
+            filename (str) -- The filename to associate with the dataset
+                (default: None, the name attribute of the fd argument will be
+                used). Note that in the case of file-like objects without
+                names (e.g. py2 StringIO.StringIO), this must be set.
+
+        Returns:
+            A dict representation of the dataset.
+
+        Raises:
+            AttributeError, if filename is not set and fd does not have a
+                name attribute.
+        """
+        dataset = self.add_dataset(
+            filename or fd.name,
+            project_id
+        )
+
+        presigned_post = dataset['addDataset']['dataset']['locatorDict']['s3Url']
+
+        self.upload_dataset(presigned_post, fd)
+
+        return self.get_dataset(dataset['addDataset']['dataset']['id'])
+
+    def add_dataset_from_pandas_df(
+            self, pandas_df, project_id, filename=None):
+        """Add a new dataset from a pandas.DataFrame.
+
+        Args:
+            pandas_df (pandas.DataFrame) -- The data frame to add.
+            project_id (int or str Relay id) -- The id of the project to which
+                the dataset belongs.
+
+        Kwargs:
+            filename (str) -- The filename to associate with the dataset
+                (default: None, the name attribute of the pandas_df argument
+                will be used).
+
+        Returns:
+            A dict representation of the dataset.
+
+        Raises:
+            AttributeError, if filename is not set and pandas_df does not have
+                a name attribute.
+        """
+        with tempfile.TemporaryFile(mode='w+') as fd:
+            pandas_df.to_csv(fd, encoding='UTF_8')
+            fd.seek(0)
+            return self.add_dataset_from_file(
+                fd,
+                project_id,
+                filename=(filename or pandas_df.name)
+            )
+
     def upload_dataset(self, presigned_post, fd):
         """Utility function to upload a file to S3.
 
@@ -496,6 +659,56 @@ class CooperPair(object):
         (s3_url, s3_querystring) = presigned_post.split('?')
         form_data = parse_qs(s3_querystring)
         return requests.post(s3_url, data=form_data, files={'file': fd})
+
+    def get_expectation_suite(self, expectation_suite_id):
+        """Retrieve an existing expectation_suite.
+
+        Args:
+            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite
+                to retrieve
+
+        Returns:
+            A dict containing the parsed expectation_suite.
+        """
+        return self.query("""
+            query expectationSuiteQuery($id: ID!) {
+                expectationSuite(id: $id) {
+                    id
+                    autoinspectionStatus
+                    organization {
+                        id
+                    }
+                    expectations {
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                        edges {
+                            cursor
+                            node {
+                                id
+                                expectationType
+                                expectationKwargs
+                                isActivated
+                                createdBy {
+                                    id
+                                }
+                                organization {
+                                    id
+                                }
+                                expectationSuite {
+                                    id
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            """,
+            variables={'id': expectation_suite_id}
+        )
 
     def add_expectation_suite(self, name, autoinspect=False, dataset_id=None, expectations=None):
         """Add a new expectation_suite.
@@ -567,6 +780,120 @@ class CooperPair(object):
                 'expectations': expectations
             }
         })
+    
+    def add_expectation_suite_from_expectations_config(
+            self, expectations_config, name):
+        """Create a new expectation_suite from a great_expectations expectations
+            config.
+
+        Args:
+            expectations_config (dict) - An expectations config as returned by
+                great_expectations.dataset.DataSet.get_expectations_config.
+                Note that this is not validated here or on the server side --
+                failures will occur at evaluation time.
+            name (str) - The name of the expectation_suite to create.
+
+        Returns:
+            A dict containing the parsed expectation_suite.
+        """
+        expectations = self.munge_ge_expectations_config(expectations_config)
+        return self.add_expectation_suite(name=name, expectations=expectations)
+
+    def add_expectation_suite_from_ge_expectations_list(
+            self, expectations_list, name):
+        """Create a new expectation_suite from a great_expectations expectations
+            list.
+
+        Args:
+            expectations_list (list) - A list of Great Expectations
+                formatted expectations
+                Note that this is not validated here or on the server side --
+                failures will occur at evaluation time.
+            name (str) - The name of the expectation_suite to create.
+
+        Returns:
+            A dict containing the parsed expectation_suite.
+        """
+        expectations = self.munge_ge_expectations_list(expectations_list)
+        return self.add_expectation_suite(name=name, expectations=expectations)
+    
+    def update_expectation_suite(
+        self,
+        expectation_suite_id,
+        autoinspection_status=None,
+        expectations=None):
+        """Update an existing expectation_suite.
+
+        Args:
+            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite
+                to update.
+
+        Kwargs:
+            autoinspection_status (str) -- The status of autoinspection, if
+                that is to be updated (default: None, no change).
+            expectations (list) -- A list of dicts representing expectations
+                to be created & added to the expectation_suite (default: None,
+                no change). Note: semantics are append.
+
+        Returns:
+            A dict representing the parsed results of the mutation.
+        """
+        assert any([
+            autoinspection_status is not None,
+            expectations is not None]), \
+            'Must update one of autoinspection_status, expectations, or ' \
+            'sections.'
+
+        variables = {
+            'expectationSuite': {
+                'id': expectation_suite_id
+            }
+        }
+
+        if expectations is not None:
+            variables['expectationSuite']['expectations'] = expectations
+        if autoinspection_status is not None:
+            variables['expectationSuite']['autoinspectionStatus'] = \
+                autoinspection_status
+
+        result = self.query("""
+            mutation updateExpectationSuiteMutation($expectationSuite: UpdateExpectationSuiteInput!) {
+                updateExpectationSuite(input: $expectationSuite) {
+                    expectationSuite {
+                        id
+                        expectations {
+                            pageInfo {
+                                hasNextPage
+                                hasPreviousPage
+                                startCursor
+                                endCursor
+                            }
+                            edges {
+                                cursor
+                                node {
+                                    id
+                                    expectationType
+                                    expectationKwargs
+                                    isActivated
+                                    createdBy {
+                                        id
+                                    }
+                                    organization {
+                                        id
+                                    }
+                                    expectationSuite {
+                                        id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            """,
+            variables=variables
+        )
+        return result
 
     def get_expectation(self, expectation_id):
         """Retrieve an expectation by its id.
@@ -600,7 +927,6 @@ class CooperPair(object):
             variables={'id': expectation_id}
         )
 
-
     def munge_ge_expectations_config(self, expectations_config):
         """
         Convert a Great Expectations expectations_config into a list
@@ -620,7 +946,6 @@ class CooperPair(object):
             
         return munged_expectations
         
-        
     def munge_ge_expectations_list(self, expectations):
         """
         Convert a Great Expectations expectation list to a list
@@ -638,7 +963,6 @@ class CooperPair(object):
             })
         
         return munged_expectations
-    
     
     def add_expectation(
             self,
@@ -784,56 +1108,6 @@ class CooperPair(object):
             }
             """,
             variables=variables
-        )
-
-    def get_expectation_suite(self, expectation_suite_id):
-        """Retrieve an existing expectation_suite.
-
-        Args:
-            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite
-                to retrieve
-
-        Returns:
-            A dict containing the parsed expectation_suite.
-        """
-        return self.query("""
-            query expectationSuiteQuery($id: ID!) {
-                expectationSuite(id: $id) {
-                    id
-                    autoinspectionStatus
-                    organization {
-                        id
-                    }
-                    expectations {
-                        pageInfo {
-                            hasNextPage
-                            hasPreviousPage
-                            startCursor
-                            endCursor
-                        }
-                        edges {
-                            cursor
-                            node {
-                                id
-                                expectationType
-                                expectationKwargs
-                                isActivated
-                                createdBy {
-                                    id
-                                }
-                                organization {
-                                    id
-                                }
-                                expectationSuite {
-                                    id
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            """,
-            variables={'id': expectation_suite_id}
         )
 
     def add_checkpoint(
@@ -1048,41 +1322,7 @@ class CooperPair(object):
         return self.add_checkpoint(
             name=checkpoint_name, expectation_suite_id=new_expectation_suite_id, slack_webhook=slack_webhook
         )
-    
-    def validate_pandas_df_against_checkpoint(
-            self,
-            pandas_df,
-            validation_identifier,
-            checkpoint_id=None,
-            checkpoint_name=None):
-        """
         
-        :param pandas_df:
-        :param validation_identifier:
-        :param checkpoint_id:
-        :param checkpoint_name:
-        :return:
-        """
-        if not checkpoint_id and not checkpoint_name:
-            raise ValueError('must provide checkpoint_id or checkpoint_name')
-        if not checkpoint_id:
-            checkpoint_id = self.get_checkpoint_by_name(checkpoint_name)['checkpoint']['id']
-        expectations_config = self.get_checkpoint_as_expectations_config(
-            checkpoint_id=checkpoint_id, checkpoint_name=checkpoint_name)
-        ge_results = ge.validate(df=pandas_df, expectations_config=expectations_config)
-        results = ge_results['results']
-        munged_results = self.munge_ge_evaluation_results(ge_results=results)
-        new_dataset = self.add_dataset(project_id=1, label=validation_identifier)
-        new_dataset_id = new_dataset['addDataset']['dataset']['id']
-        self.add_evaluation(
-            dataset_id=new_dataset_id,
-            checkpoint_id=checkpoint_id,
-            delay_evaluation=True,
-            results=munged_results
-        )
-        return ge_results
-        
-
     def list_expectation_suites(self, complex=False):
         """Retrieve all existing expectation_suites.
 
@@ -1154,120 +1394,6 @@ class CooperPair(object):
                 """
             )
 
-    def update_expectation_suite(
-            self,
-            expectation_suite_id,
-            autoinspection_status=None,
-            expectations=None):
-        """Update an existing expectation_suite.
-
-        Args:
-            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite
-                to update.
-
-        Kwargs:
-            autoinspection_status (str) -- The status of autoinspection, if
-                that is to be updated (default: None, no change).
-            expectations (list) -- A list of dicts representing expectations
-                to be created & added to the expectation_suite (default: None,
-                no change). Note: semantics are append.
-
-        Returns:
-            A dict representing the parsed results of the mutation.
-        """
-        assert any([
-            autoinspection_status is not None,
-            expectations is not None]), \
-            'Must update one of autoinspection_status, expectations, or ' \
-            'sections.'
-
-        variables = {
-            'expectationSuite': {
-                'id': expectation_suite_id
-            }
-        }
-
-        if expectations is not None:
-            variables['expectationSuite']['expectations'] = expectations
-        if autoinspection_status is not None:
-            variables['expectationSuite']['autoinspectionStatus'] = \
-                autoinspection_status
-
-        result = self.query("""
-            mutation updateExpectationSuiteMutation($expectationSuite: UpdateExpectationSuiteInput!) {
-                updateExpectationSuite(input: $expectationSuite) {
-                    expectationSuite {
-                        id
-                        expectations {
-                            pageInfo {
-                                hasNextPage
-                                hasPreviousPage
-                                startCursor
-                                endCursor
-                            }
-                            edges {
-                                cursor
-                                node {
-                                    id
-                                    expectationType
-                                    expectationKwargs
-                                    isActivated
-                                    createdBy {
-                                        id
-                                    }
-                                    organization {
-                                        id
-                                    }
-                                    expectationSuite {
-                                        id
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            """,
-            variables=variables
-        )
-        return result
-
-    def add_expectation_suite_from_expectations_config(
-            self, expectations_config, name):
-        """Create a new expectation_suite from a great_expectations expectations
-            config.
-
-        Args:
-            expectations_config (dict) - An expectations config as returned by
-                great_expectations.dataset.DataSet.get_expectations_config.
-                Note that this is not validated here or on the server side --
-                failures will occur at evaluation time.
-            name (str) - The name of the expectation_suite to create.
-
-        Returns:
-            A dict containing the parsed expectation_suite.
-        """
-        expectations = self.munge_ge_expectations_config(expectations_config)
-        return self.add_expectation_suite(name=name, expectations=expectations)
-        
-    def add_expectation_suite_from_ge_expectations_list(
-        self, expectations_list, name):
-        """Create a new expectation_suite from a great_expectations expectations
-            list.
-    
-        Args:
-            expectations_list (list) - A list of Great Expectations
-                formatted expectations
-                Note that this is not validated here or on the server side --
-                failures will occur at evaluation time.
-            name (str) - The name of the expectation_suite to create.
-    
-        Returns:
-            A dict containing the parsed expectation_suite.
-        """
-        expectations = self.munge_ge_expectations_list(expectations_list)
-        return self.add_expectation_suite(name=name, expectations=expectations)
-
     def get_checkpoint_as_expectations_config(
             self, checkpoint_id=None, checkpoint_name=None, include_inactive=False):
         """Retrieve a checkpoint as a great_expectations expectations config.
@@ -1310,137 +1436,6 @@ class CooperPair(object):
                 in expectations
             ]}
         return expectations_config
-
-    def add_dataset_from_file(
-            self, fd, project_id, filename=None):
-        """Add a new dataset from a file or file-like object.
-
-        Args:
-            fd (file-like) -- A file descriptor or file-like object to add
-                as a new dataset, opened as 'rb'.
-            project_id (int or str Relay id) -- The id of the project to which
-                the dataset belongs.
-
-        Kwargs:
-            filename (str) -- The filename to associate with the dataset
-                (default: None, the name attribute of the fd argument will be
-                used). Note that in the case of file-like objects without
-                names (e.g. py2 StringIO.StringIO), this must be set.
-
-        Returns:
-            A dict representation of the dataset.
-
-        Raises:
-            AttributeError, if filename is not set and fd does not have a
-                name attribute.
-        """
-        dataset = self.add_dataset(
-            filename or fd.name,
-            project_id
-        )
-
-        presigned_post = dataset['addDataset']['dataset']['locatorDict']['s3Url']
-
-        self.upload_dataset(presigned_post, fd)
-
-        return self.get_dataset(dataset['addDataset']['dataset']['id'])
-
-    def add_dataset_from_pandas_df(
-            self, pandas_df, project_id, filename=None):
-        """Add a new dataset from a pandas.DataFrame.
-
-        Args:
-            pandas_df (pandas.DataFrame) -- The data frame to add.
-            project_id (int or str Relay id) -- The id of the project to which
-                the dataset belongs.
-
-        Kwargs:
-            filename (str) -- The filename to associate with the dataset
-                (default: None, the name attribute of the pandas_df argument
-                will be used).
-
-        Returns:
-            A dict representation of the dataset.
-
-        Raises:
-            AttributeError, if filename is not set and pandas_df does not have
-                a name attribute.
-        """
-        with tempfile.TemporaryFile(mode='w+') as fd:
-            pandas_df.to_csv(fd, encoding='UTF_8')
-            fd.seek(0)
-            return self.add_dataset_from_file(
-                fd,
-                project_id,
-                filename=(filename or pandas_df.name)
-            )
-
-    def evaluate_expectation_suite_on_pandas_df(
-            self,
-            expectation_suite_id,
-            pandas_df,
-            filename=None,
-            project_id=None):
-        """Evaluate a expectation_suite on a pandas.DataFrame.
-
-        Args:
-            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite to
-                evaluate.
-            pandas_df (pandas.DataFrame) -- The data frame on which to
-                evaluate the expectation_suite.
-
-        Kwargs:
-            filename (str) -- The filename to associate with the dataset
-                (default: None, the name attribute of the pandas_df argument
-                will be used).
-
-        Returns:
-            A dict representation of the evaluation.
-        """
-        expectation_suite = self.get_expectation_suite(expectation_suite_id)
-        expectation_suite_id = expectation_suite['expectation_suite']['id']
-        dataset = self.add_dataset_from_pandas_df(
-            pandas_df,
-            project_id,
-            filename=filename)
-        return self.add_evaluation(
-            dataset['dataset']['id'],
-            expectation_suite_id
-        )
-
-    def evaluate_expectation_suite_on_file(
-            self,
-            expectation_suite_id,
-            fd,
-            filename=None,
-            project_id=None
-        ):
-        """Evaluate a expectation_suite on a file.
-
-        Args:
-            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite to
-                evaluate.
-            fd (file-like) -- A file descriptor or file-like object to
-                evaluate, opened as 'rb'.
-
-        Kwargs:
-            filename (str) -- The filename to associate with the dataset
-                (default: None, the name attribute of the pandas_df argument
-                will be used).
-
-        Returns:
-            A dict representation of the evaluation.
-        """
-        expectation_suite = self.get_expectation_suite(expectation_suite_id)
-        expectation_suite_id = expectation_suite['expectation_suite']['id']
-        dataset = self.add_dataset_from_file(
-            fd,
-            project_id,
-            filename=filename)
-        return self.add_evaluation(
-            dataset['dataset']['id'],
-            expectation_suite_id
-        )
 
     def get_expectation_suite_as_json_string(
             self, expectation_suite_id, include_inactive=False):
