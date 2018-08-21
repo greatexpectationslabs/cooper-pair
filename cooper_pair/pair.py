@@ -535,6 +535,19 @@ class CooperPair(object):
             variables={'id': dataset_id}
         )
 
+    def list_datasets(self):
+        return self.query("""{
+            allDatasets{
+                edges {
+                    node{
+                        id
+                        label
+                        locatorDict
+                    }
+                }
+            }
+        }""")
+
     def add_dataset(self, project_id, filename=None, label=None):
         """Add a new dataset object.
 
@@ -660,6 +673,43 @@ class CooperPair(object):
         form_data = parse_qs(s3_querystring)
         return requests.post(s3_url, data=form_data, files={'file': fd})
 
+    def munge_ge_expectations_config(self, expectations_config):
+        """
+        Convert a Great Expectations expectations_config into a list
+        of expectations that can be consumed by Checkpoints
+        :param expectations_config: expectations_config as returned from
+        Great Expectations
+        :return:
+        """
+        expectations = expectations_config['expectations']
+        munged_expectations = []
+    
+        for expectation in expectations:
+            munged_expectations.append({
+                'expectationType': expectation['expectation_type'],
+                'expectationKwargs': json.dumps(expectation['kwargs'])
+            })
+    
+        return munged_expectations
+
+    def munge_ge_expectations_list(self, expectations):
+        """
+        Convert a Great Expectations expectation list to a list
+        of expectations that can be consumed by Checkpoints
+        :param expectations_config: expectations_config as returned from
+        Great Expectations
+        :return:
+        """
+        munged_expectations = []
+    
+        for expectation in expectations:
+            munged_expectations.append({
+                'expectationType': expectation['expectation_type'],
+                'expectationKwargs': json.dumps(expectation['kwargs'])
+            })
+    
+        return munged_expectations
+
     def get_expectation_suite(self, expectation_suite_id):
         """Retrieve an existing expectation_suite.
 
@@ -709,6 +759,114 @@ class CooperPair(object):
             """,
             variables={'id': expectation_suite_id}
         )
+
+    def get_expectation_suite_as_json_string(
+            self, expectation_suite_id, include_inactive=False):
+        """Retrieve a JSON representation of a expectation_suite.
+
+        Args:
+            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite to
+                retrieve
+            include_inactive (bool) -- If true, evaluations whose isActivated
+                flag is false will be included in the JSON config (default:
+                False)
+
+        Returns:
+            A JSON representation of the expectation_suite.
+        """
+        expectation_suite = self.get_expectation_suite(expectation_suite_id)
+        if include_inactive:
+            expectations = [
+                expectation['node']
+                for expectation
+                in expectation_suite['expectation_suite']['expectations']['edges']]
+        else:
+            expectations = [
+                expectation['node']
+                for expectation
+                in expectation_suite['expectation_suite']['expectations']['edges']
+                if expectation['node']['isActivated']]
+
+        return json.dumps(
+            {'expectations': [
+                {
+                    'expectation_type': expectation['expectationType'],
+                    'kwargs': json.loads(expectation['expectationKwargs'])}
+                for expectation in expectations]},
+            indent=2,
+            separators=(',', ': '),
+            sort_keys=True)
+
+    def list_expectation_suites(self, complex=False):
+        """Retrieve all existing expectation_suites.
+
+        Returns:
+            A dict containing the parsed query.
+        """
+        if not complex:
+            return self.query("""
+                query listExpectationSuiteQuery{
+                    allExpectationSuites {
+                        edges {
+                            node {
+                                id
+                                name
+                            }
+                        }
+                    }
+                }
+            """)
+        else:
+            return self.query("""
+                query listExpectationSuiteQuery{
+                    allExpectationSuites {
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                        edges {
+                            cursor
+                            node {
+                                id
+                                name
+                                autoinspectionStatus
+                                organization {
+                                    id
+                                }
+                                expectations {
+                                    pageInfo {
+                                        hasNextPage
+                                        hasPreviousPage
+                                        startCursor
+                                        endCursor
+                                    }
+                                    edges {
+                                        cursor
+                                        node {
+                                            id
+                                            expectationType
+                                            expectationKwargs
+                                            isActivated
+                                            createdBy {
+                                                id
+                                            }
+                                            organization {
+                                                id
+                                            }
+                                            expectationSuite {
+                                                id
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                """
+            )
 
     def add_expectation_suite(self, name, autoinspect=False, dataset_id=None, expectations=None):
         """Add a new expectation_suite.
@@ -926,43 +1084,6 @@ class CooperPair(object):
             """,
             variables={'id': expectation_id}
         )
-
-    def munge_ge_expectations_config(self, expectations_config):
-        """
-        Convert a Great Expectations expectations_config into a list
-        of expectations that can be consumed by Checkpoints
-        :param expectations_config: expectations_config as returned from
-        Great Expectations
-        :return:
-        """
-        expectations = expectations_config['expectations']
-        munged_expectations = []
-        
-        for expectation in expectations:
-            munged_expectations.append({
-                'expectationType': expectation['expectation_type'],
-                'expectationKwargs': json.dumps(expectation['kwargs'])
-            })
-            
-        return munged_expectations
-        
-    def munge_ge_expectations_list(self, expectations):
-        """
-        Convert a Great Expectations expectation list to a list
-        of expectations that can be consumed by Checkpoints
-        :param expectations_config: expectations_config as returned from
-        Great Expectations
-        :return:
-        """
-        munged_expectations = []
-        
-        for expectation in expectations:
-            munged_expectations.append({
-                'expectationType': expectation['expectation_type'],
-                'expectationKwargs': json.dumps(expectation['kwargs'])
-            })
-        
-        return munged_expectations
     
     def add_expectation(
             self,
@@ -1110,6 +1231,157 @@ class CooperPair(object):
             variables=variables
         )
 
+    def get_checkpoint(self, checkpoint_id):
+        """Retrieve an existing checkpoint.
+
+        Args:
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint
+                to retrieve
+
+        Returns:
+            A dict containing the parsed checkpoint.
+        """
+        return self.query("""
+            query checkpointQuery($id: ID!) {
+                checkpoint(id: $id) {
+                    id
+                    name
+                    slug
+                    isActivated
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    expectationSuite {
+                        expectations {
+                            pageInfo {
+                                hasNextPage
+                                hasPreviousPage
+                                startCursor
+                                endCursor
+                            }
+                            edges {
+                                cursor
+                                node {
+                                    id
+                                    expectationType
+                                    expectationKwargs
+                                    isActivated
+                                    createdBy {
+                                        id
+                                    }
+                                    organization {
+                                        id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            """,
+                          variables={'id': checkpoint_id}
+                          )
+
+    def get_checkpoint_by_name(self, checkpoint_name):
+        """Retrieve an existing checkpoint by name.
+
+        Args:
+            name (str) -- The name of the checkpoint
+                to retrieve
+
+        Returns:
+            A dict containing the parsed checkpoint.
+        """
+        return self.query("""
+            query checkpointQuery($name: String!) {
+                checkpoint(name: $name) {
+                    id
+                    name
+                    slug
+                    isActivated
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    expectationSuite {
+                        expectations {
+                            pageInfo {
+                                hasNextPage
+                                hasPreviousPage
+                                startCursor
+                                endCursor
+                            }
+                            edges {
+                                cursor
+                                node {
+                                    id
+                                    expectationType
+                                    expectationKwargs
+                                    isActivated
+                                    createdBy {
+                                        id
+                                    }
+                                    organization {
+                                        id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            """,
+                          variables={'name': checkpoint_name}
+                          )
+
+    def get_checkpoint_as_expectations_config(
+            self, checkpoint_id=None, checkpoint_name=None, include_inactive=False):
+        """Retrieve a checkpoint as a great_expectations expectations config.
+
+        Args:
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
+                retrieve
+            include_inactive (bool) -- If true, evaluations whose isActivated
+                flag is false will be included in the JSON config (default:
+                False).
+
+        Returns:
+            An expectations config dict as returned by
+                great_expectations.dataset.DataSet.get_expectations_config.
+        """
+    
+        if checkpoint_id:
+            checkpoint = self.get_checkpoint(checkpoint_id)
+        else:
+            checkpoint = self.get_checkpoint_by_name(checkpoint_name)
+    
+        if include_inactive:
+            expectations = [
+                expectation['node']
+                for expectation
+                in checkpoint['checkpoint']['expectationSuite']['expectations']['edges']]
+        else:
+            expectations = [
+                expectation['node']
+                for expectation
+                in checkpoint['checkpoint']['expectationSuite']['expectations']['edges']
+                if expectation['node']['isActivated']]
+        expectations_config = {
+            'meta': {'great_expectations.__version__': '0.3.0'},
+            'dataset_name': None,
+            'expectations': [
+                {'expectation_type': expectation['expectationType'],
+                 'kwargs': json.loads(expectation['expectationKwargs'])}
+                for expectation
+                in expectations
+            ]}
+        return expectations_config
+
     def add_checkpoint(
             self,
             name,
@@ -1178,114 +1450,6 @@ class CooperPair(object):
             }
         )
 
-    def get_checkpoint(self, checkpoint_id):
-        """Retrieve an existing checkpoint.
-
-        Args:
-            checkpoint_id (int or str Relay id) -- The id of the checkpoint
-                to retrieve
-
-        Returns:
-            A dict containing the parsed checkpoint.
-        """
-        return self.query("""
-            query checkpointQuery($id: ID!) {
-                checkpoint(id: $id) {
-                    id
-                    name
-                    slug
-                    isActivated
-                    createdBy {
-                        id
-                        firstName
-                        lastName
-                        email
-                    }
-                    expectationSuite {
-                        expectations {
-                            pageInfo {
-                                hasNextPage
-                                hasPreviousPage
-                                startCursor
-                                endCursor
-                            }
-                            edges {
-                                cursor
-                                node {
-                                    id
-                                    expectationType
-                                    expectationKwargs
-                                    isActivated
-                                    createdBy {
-                                        id
-                                    }
-                                    organization {
-                                        id
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            """,
-            variables={'id': checkpoint_id}
-        )
-    
-    def get_checkpoint_by_name(self, checkpoint_name):
-        """Retrieve an existing checkpoint by name.
-
-        Args:
-            name (str) -- The name of the checkpoint
-                to retrieve
-
-        Returns:
-            A dict containing the parsed checkpoint.
-        """
-        return self.query("""
-            query checkpointQuery($name: String!) {
-                checkpoint(name: $name) {
-                    id
-                    name
-                    slug
-                    isActivated
-                    createdBy {
-                        id
-                        firstName
-                        lastName
-                        email
-                    }
-                    expectationSuite {
-                        expectations {
-                            pageInfo {
-                                hasNextPage
-                                hasPreviousPage
-                                startCursor
-                                endCursor
-                            }
-                            edges {
-                                cursor
-                                node {
-                                    id
-                                    expectationType
-                                    expectationKwargs
-                                    isActivated
-                                    createdBy {
-                                        id
-                                    }
-                                    organization {
-                                        id
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            """,
-            variables={'name': checkpoint_name}
-        )
-
     def setup_checkpoint_from_ge_expectations_config(
             self, checkpoint_name, expectations_config, slack_webhook=None):
         
@@ -1322,157 +1486,6 @@ class CooperPair(object):
         return self.add_checkpoint(
             name=checkpoint_name, expectation_suite_id=new_expectation_suite_id, slack_webhook=slack_webhook
         )
-        
-    def list_expectation_suites(self, complex=False):
-        """Retrieve all existing expectation_suites.
-
-        Returns:
-            A dict containing the parsed query.
-        """
-        if not complex:
-            return self.query("""
-                query listExpectationSuiteQuery{
-                    allExpectationSuites {
-                        edges {
-                            node {
-                                id
-                                name
-                            }
-                        }
-                    }
-                }
-            """)
-        else:
-            return self.query("""
-                query listExpectationSuiteQuery{
-                    allExpectationSuites {
-                        pageInfo {
-                            hasNextPage
-                            hasPreviousPage
-                            startCursor
-                            endCursor
-                        }
-                        edges {
-                            cursor
-                            node {
-                                id
-                                name
-                                autoinspectionStatus
-                                organization {
-                                    id
-                                }
-                                expectations {
-                                    pageInfo {
-                                        hasNextPage
-                                        hasPreviousPage
-                                        startCursor
-                                        endCursor
-                                    }
-                                    edges {
-                                        cursor
-                                        node {
-                                            id
-                                            expectationType
-                                            expectationKwargs
-                                            isActivated
-                                            createdBy {
-                                                id
-                                            }
-                                            organization {
-                                                id
-                                            }
-                                            expectationSuite {
-                                                id
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                """
-            )
-
-    def get_checkpoint_as_expectations_config(
-            self, checkpoint_id=None, checkpoint_name=None, include_inactive=False):
-        """Retrieve a checkpoint as a great_expectations expectations config.
-
-        Args:
-            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
-                retrieve
-            include_inactive (bool) -- If true, evaluations whose isActivated
-                flag is false will be included in the JSON config (default:
-                False).
-
-        Returns:
-            An expectations config dict as returned by
-                great_expectations.dataset.DataSet.get_expectations_config.
-        """
-    
-        if checkpoint_id:
-            checkpoint = self.get_checkpoint(checkpoint_id)
-        else:
-            checkpoint = self.get_checkpoint_by_name(checkpoint_name)
-    
-        if include_inactive:
-            expectations = [
-                expectation['node']
-                for expectation
-                in checkpoint['checkpoint']['expectationSuite']['expectations']['edges']]
-        else:
-            expectations = [
-                expectation['node']
-                for expectation
-                in checkpoint['checkpoint']['expectationSuite']['expectations']['edges']
-                if expectation['node']['isActivated']]
-        expectations_config = {
-            'meta': {'great_expectations.__version__': '0.3.0'},
-            'dataset_name': None,
-            'expectations': [
-                {'expectation_type': expectation['expectationType'],
-                 'kwargs': json.loads(expectation['expectationKwargs'])}
-                for expectation
-                in expectations
-            ]}
-        return expectations_config
-
-    def get_expectation_suite_as_json_string(
-            self, expectation_suite_id, include_inactive=False):
-        """Retrieve a JSON representation of a expectation_suite.
-
-        Args:
-            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite to
-                retrieve
-            include_inactive (bool) -- If true, evaluations whose isActivated
-                flag is false will be included in the JSON config (default:
-                False)
-
-        Returns:
-            A JSON representation of the expectation_suite.
-        """
-        expectation_suite = self.get_expectation_suite(expectation_suite_id)
-        if include_inactive:
-            expectations = [
-                expectation['node']
-                for expectation
-                in expectation_suite['expectation_suite']['expectations']['edges']]
-        else:
-            expectations = [
-                expectation['node']
-                for expectation
-                in expectation_suite['expectation_suite']['expectations']['edges']
-                if expectation['node']['isActivated']]
-
-        return json.dumps(
-            {'expectations': [
-                {
-                    'expectation_type': expectation['expectationType'],
-                    'kwargs': json.loads(expectation['expectationKwargs'])}
-                for expectation in expectations]},
-            indent=2,
-            separators=(',', ': '),
-            sort_keys=True)
 
     def list_configured_notifications(self, checkpoint_id):
         """Retrieve all existing configured notifications for 
@@ -1498,16 +1511,3 @@ class CooperPair(object):
                 }
             }
             """, variables={'id': checkpoint_id})
-
-    def list_datasets(self):
-        return self.query("""{
-            allDatasets{
-                edges {
-                    node{
-                        id
-                        label
-                        locatorDict
-                    }
-                }
-            }
-        }""")
