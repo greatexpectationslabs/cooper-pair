@@ -1552,7 +1552,7 @@ class CooperPair(object):
             name=checkpoint_name, expectation_suite_id=new_expectation_suite_id, slack_webhook=slack_webhook
         )
 
-    def list_configured_notifications(self, checkpoint_id):
+    def list_configured_notifications_on_checkpoint(self, checkpoint_id):
         """Retrieve all existing configured notifications for 
         a given checkpoint_id.
 
