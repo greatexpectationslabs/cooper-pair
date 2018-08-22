@@ -182,8 +182,6 @@ def test_get_expectation_suite():
 def test_update_expectation_suite():
     with pytest.raises(AssertionError):
         pair.update_expectation_suite(2)
-    with pytest.raises(AssertionError):
-        pair.update_expectation_suite(2, expectations=[], sections=[])
 
     new_expectation_suite = pair.add_expectation_suite('my_cool_test_expectation_suite')
     new_expectation_suite_id = new_expectation_suite['addExpectationSuite']['expectationSuite']['id']
