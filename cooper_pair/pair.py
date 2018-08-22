@@ -1062,8 +1062,7 @@ class CooperPair(object):
         assert any([
             autoinspection_status is not None,
             expectations is not None]), \
-            'Must update one of autoinspection_status, expectations, or ' \
-            'sections.'
+            'Must update one of autoinspection_status or expectations'
 
         variables = {
             'expectationSuite': {
