@@ -819,6 +819,45 @@ class CooperPair(object):
             separators=(',', ': '),
             sort_keys=True)
 
+    def get_expectation_suite_as_expectations_config(
+            self, expectation_suite_id, include_inactive=False):
+        """Retrieve an expectation suite  as a great_expectations expectations config.
+
+        Kwargs:
+            expectation_suite_id (int or str Relay id) -- The id of the expectation suite to
+                retrieve
+            include_inactive (bool) -- If true, expectations whose isActivated
+                flag is false will be included in the JSON config (default:
+                False).
+
+        Returns:
+            An expectations config dict as returned by
+                great_expectations.dataset.DataSet.get_expectations_config.
+        """
+        expectation_suite = self.get_expectation_suite(expectation_suite_id)['expectationSuite']
+    
+        if include_inactive:
+            expectations = [
+                expectation['node']
+                for expectation
+                in expectation_suite['expectations']['edges']]
+        else:
+            expectations = [
+                expectation['node']
+                for expectation
+                in expectation_suite['expectations']['edges']
+                if expectation['node']['isActivated']]
+        expectations_config = {
+            'meta': {'great_expectations.__version__': '0.4.3'},
+            'dataset_name': None,
+            'expectations': [
+                {'expectation_type': expectation['expectationType'],
+                 'kwargs': json.loads(expectation['expectationKwargs'])}
+                for expectation
+                in expectations
+            ]}
+        return expectations_config
+
     def list_expectation_suites(self, complex=False):
         """Retrieve all existing expectation_suites.
 
