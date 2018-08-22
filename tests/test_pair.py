@@ -205,7 +205,7 @@ def test_update_expectation_suite():
     assert expectation_suite['expectationSuite']['expectations']
     expectations = expectation_suite['expectationSuite']['expectations']
     assert expectations['edges'][0]
-    assert expectations['edges'][0]['node']['expectation']['id']
+    assert expectations['edges'][0]['node']['id']
 
     #FIXME: Passing createdById should raise an exception in allotrope.
     expectations_2 = [{
@@ -227,7 +227,7 @@ def test_add_and_get_expectation_suite_from_expectations_config_and_as_json():
 
     assert expectation_suite
 
-    expectation_suite_id = expectation_suite['updateExpectationSuite']['expectationSuite']['id']
+    expectation_suite_id = expectation_suite['addExpectationSuite']['expectationSuite']['id']
 
     assert pair.get_expectation_suite_as_expectations_config(
         expectation_suite_id) == SAMPLE_EXPECTATIONS_CONFIG
@@ -276,15 +276,15 @@ def test_add_dataset_from_file():
         os.chdir(pwd)
 
 
-def test_evaluate_expectation_suite_on_file():
+def test_evaluate_checkpoint_on_file():
     with pytest.raises(AttributeError):
-        pair.evaluate_expectation_suite_on_file(2, StringIO())
+        pair.evaluate_checkpoint_on_file(2, StringIO())
 
     pwd = os.getcwd()
     os.chdir(os.path.dirname(__file__))
     try:
         with open('etp_participant_data.csv', 'rb') as fd:
-            response = pair.evaluate_expectation_suite_on_file(1, fd)
+            response = pair.evaluate_checkpoint_on_file(1, fd)
             print(json.dumps(response, indent=2))
             assert response
             assert response["addEvaluation"]["evaluation"]["status"] == "created"
@@ -325,16 +325,16 @@ def test_add_dataset_from_pandas_df():
     finally:
         os.chdir(pwd)
 
-def test_evaluate_expectation_suite_on_pandas_df():
+def test_evaluate_checkpoint_on_pandas_df():
     pwd = os.getcwd()
     os.chdir(os.path.dirname(__file__))
     try:
         pandas_df = pd.read_csv('etp_participant_data.csv')
         with pytest.raises(AttributeError):
-            pair.evaluate_expectation_suite_on_pandas_df(2, pandas_df)
+            pair.evaluate_checkpoint_on_pandas_df(2, pandas_df)
 
         pandas_df.name = 'foo'
-        response = pair.evaluate_expectation_suite_on_pandas_df(1, pandas_df)
+        response = pair.evaluate_checkpoint_on_pandas_df(1, pandas_df)
         print(json.dumps(response, indent=2))
         assert response
         assert response["addEvaluation"]["evaluation"]["status"] == "created"
@@ -379,29 +379,14 @@ def test_list_expectation_suites():
 class TestSomeStuff(unittest.TestCase):
     #Declaring a real TestCase class so that we can use unittest affordances.
 
-    def test_list_configured_notifications(self):
-        res = pair.list_configured_notifications()
+    def test_list_configured_notifications_on_checkpoint(self):
+        res = pair.list_configured_notifications_on_checkpoint(1)
         print(json.dumps(res, indent=2))
         self.assertEqual(
-            res,
-            {
-                "allConfiguredNotifications": {
-                    "edges": [
-                    {
-                        "cursor": "YXJyYXljb25uZWN0aW9uOjA=",
-                        "node": {
-                        "id": "Q29uZmlndXJlZE5vdGlmaWNhdGlvbjox",
-                        "notificationType": 0,
-                        "value": "https://hooks.slack.com/services/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"
-                        }
-                    }
-                    ]
-                }
-            }
-        )
+            len(res['checkpoint']['configuredNotifications']['edges']), 3)
 
     def test_update_evaluation(self):
-        res = pair.add_evaluation(dataset_id=1, expectation_suite_id=1)
+        res = pair.add_evaluation(dataset_id=1, checkpoint_id=1)
         # print(json.dumps(res, indent=2))
 
         res2 = pair.update_evaluation(
@@ -442,12 +427,13 @@ class TestSomeStuff(unittest.TestCase):
         temp_df = pd.DataFrame([row["node"] for row in response_3["allDatasets"]["edges"]])
         assert temp_df[temp_df["id"]==response_2["dataset"]["id"]].shape == (1,3)
 
-        matched_filename = list(temp_df[temp_df["id"]==response_2["dataset"]["id"]]["filename"])[0]
-        matched_s3Key = list(temp_df[temp_df["id"]==response_2["dataset"]["id"]]["s3Key"])[0]
-
+        matched_filename = json.loads(
+            list(temp_df[temp_df["id"]==response_2["dataset"]["id"]]["locatorDict"])[0])["filename"]
+        matched_s3Key = json.loads(
+            list(temp_df[temp_df["id"]==response_2["dataset"]["id"]]["locatorDict"])[0])["s3_key"]
+        
         assert my_filename in matched_filename
         assert my_filename in matched_s3Key
-
 
     def test_get_dataset(self):
         my_filename = "test_data_123456"
