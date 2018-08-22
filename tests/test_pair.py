@@ -35,19 +35,17 @@ SAMPLE_EXPECTATIONS_CONFIG = {
         {'expectation_type': 'expect_column_to_exist',
          'kwargs': {'column': 'a_column'}}
          ],
-    'meta': {'great_expectations.__version__': '0.3.0'}}
+    'meta': {'great_expectations.__version__': '0.4.3'}}
 
 
 def test_version():
     assert __version__
-
 
 # FIXME: This test runs very slowly
 def test_init():
     assert pair.client  #This is the slow line.
     assert pair.transport
     pass
-
 
 def test_init_client_without_credentials():
     with pytest.warns(UserWarning):
