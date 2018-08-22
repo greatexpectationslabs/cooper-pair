@@ -795,17 +795,18 @@ class CooperPair(object):
         Returns:
             A JSON representation of the expectation_suite.
         """
-        expectation_suite = self.get_expectation_suite(expectation_suite_id)
+        expectation_suite = self.get_expectation_suite(expectation_suite_id)['expectationSuite']
+        
         if include_inactive:
             expectations = [
                 expectation['node']
                 for expectation
-                in expectation_suite['expectation_suite']['expectations']['edges']]
+                in expectation_suite['expectations']['edges']]
         else:
             expectations = [
                 expectation['node']
                 for expectation
-                in expectation_suite['expectation_suite']['expectations']['edges']
+                in expectation_suite['expectations']['edges']
                 if expectation['node']['isActivated']]
 
         return json.dumps(
