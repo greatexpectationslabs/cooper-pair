@@ -1437,7 +1437,7 @@ class CooperPair(object):
                 in checkpoint['checkpoint']['expectationSuite']['expectations']['edges']
                 if expectation['node']['isActivated']]
         expectations_config = {
-            'meta': {'great_expectations.__version__': '0.3.0'},
+            'meta': {'great_expectations.__version__': '0.4.3'},
             'dataset_name': None,
             'expectations': [
                 {'expectation_type': expectation['expectationType'],
