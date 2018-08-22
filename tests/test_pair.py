@@ -79,7 +79,7 @@ def test_unauthenticated_query():
     with pytest.warns(UserWarning):
         pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
     with pytest.warns(UserWarning):
-        pair.add_evaluation(dataset_id=1, expectation_suite_id=1)
+        pair.add_evaluation(dataset_id=1, checkpoint_id=1)
 
 
 def test_bad_query():
@@ -88,7 +88,10 @@ def test_bad_query():
 
 
 def test_add_evaluation():
-    assert pair.add_evaluation(dataset_id=1, expectation_suite_id=1)
+    assert pair.add_evaluation(
+        dataset_id=1,
+        checkpoint_id=1,
+        checkpoint_name="test name")
 
 
 def test_add_dataset():
