@@ -585,20 +585,21 @@ class CooperPair(object):
         return self.query("""
             mutation addDatasetMutation($dataset: AddDatasetInput!) {
                 addDataset(input: $dataset) {
-                dataset {
-                    id
-                    label
-                    project {
-                    id
+                    dataset {
+                        id
+                        s3Url
+                        label
+                        project {
+                            id
+                        }
+                        createdBy {
+                            id
+                        }
+                        locatorDict
+                        organization {
+                            id
+                        }
                     }
-                    createdBy {
-                    id
-                    }
-                    locatorDict
-                    organization {
-                    id
-                    }
-                }
                 }
             }
             """,
