@@ -285,6 +285,9 @@ class CooperPair(object):
         Returns:
             A dict containing the parsed results of the mutation.
         """
+        if not checkpoint_id and not checkpoint_name:
+            raise ValueError('must provide checkpoint_id or checkpoint_name')
+        
         if results is not None:
             if all([x['success'] for x in results]):
                 status = 'success'
@@ -1378,7 +1381,9 @@ class CooperPair(object):
             An expectations config dict as returned by
                 great_expectations.dataset.DataSet.get_expectations_config.
         """
-    
+        if not checkpoint_id and not checkpoint_name:
+            raise ValueError('must provide checkpoint_id or checkpoint_name')
+        
         if checkpoint_id:
             checkpoint = self.get_checkpoint(checkpoint_id)
         else:
