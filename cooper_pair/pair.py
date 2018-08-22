@@ -341,9 +341,9 @@ class CooperPair(object):
             }
         })
     
-    def evaluate_expectation_suite_on_pandas_df(
+    def evaluate_checkpoint_on_pandas_df(
             self,
-            expectation_suite_id,
+            checkpoint_id,
             pandas_df,
             filename=None,
             project_id=None):
@@ -365,20 +365,18 @@ class CooperPair(object):
         Returns:
             A dict representation of the evaluation.
         """
-        expectation_suite = self.get_expectation_suite(expectation_suite_id)
-        expectation_suite_id = expectation_suite['expectation_suite']['id']
         dataset = self.add_dataset_from_pandas_df(
             pandas_df,
             project_id,
             filename=filename)
         return self.add_evaluation(
             dataset['dataset']['id'],
-            expectation_suite_id
+            checkpoint_id
         )
 
-    def evaluate_expectation_suite_on_file(
+    def evaluate_checkpoint_on_file(
             self,
-            expectation_suite_id,
+            checkpoint_id,
             fd,
             filename=None,
             project_id=None):
@@ -400,18 +398,16 @@ class CooperPair(object):
         Returns:
             A dict representation of the evaluation.
         """
-        expectation_suite = self.get_expectation_suite(expectation_suite_id)
-        expectation_suite_id = expectation_suite['expectation_suite']['id']
         dataset = self.add_dataset_from_file(
             fd,
             project_id,
             filename=filename)
         return self.add_evaluation(
             dataset['dataset']['id'],
-            expectation_suite_id
+            checkpoint_id
         )
 
-    def validate_pandas_df_against_checkpoint(
+    def evaluate_pandas_df_against_checkpoint(
             self,
             pandas_df,
             dataset_label,
