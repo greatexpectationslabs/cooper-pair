@@ -640,7 +640,7 @@ class CooperPair(object):
             filename or fd.name
         )
 
-        presigned_post = dataset['addDataset']['dataset']['locatorDict']['s3Url']
+        presigned_post = dataset['addDataset']['dataset']['s3Url']
 
         self.upload_dataset(presigned_post, fd)
 
