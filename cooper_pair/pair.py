@@ -194,9 +194,12 @@ class CooperPair(object):
             return self.client.execute(query_gql, variable_values=variables)
 
     def munge_ge_evaluation_results(self, ge_results):
-        """
-            Unpack the expectation object to match the semi-flattened structure used by Allotrope.
-            """
+        '''
+        Unpack the Great Expectations result object to match the semi-flattened
+        structure used by Allotrope.
+        :param ge_results: a list of result dicts returned by Great Expectations
+        :return: a list of result dicts that can be consumed by Allotrope
+        '''
         return [
             {
                 'success': result['success'],
@@ -216,6 +219,11 @@ class CooperPair(object):
             for result in ge_results]
     
     def get_evaluation(self, evaluation_id):
+        """
+        Query an evaluation by id
+        :param evaluation_id: Evaluation id
+        :return: Graphql query result containing Evaluation dict
+        """
         return self.query("""
             query evaluationQuery($id: ID!) {
                 evaluation(id: $id) {
@@ -273,7 +281,7 @@ class CooperPair(object):
                 to run the evaluation.
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
-
+            checkpoint_name (str) -- The name of the checkpoint to evaluate
         Returns:
             A dict containing the parsed results of the mutation.
         """
@@ -337,18 +345,20 @@ class CooperPair(object):
             filename=None,
             project_id=None):
         """Evaluate a expectation_suite on a pandas.DataFrame.
-
+        
         Args:
-            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite to
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
             pandas_df (pandas.DataFrame) -- The data frame on which to
                 evaluate the expectation_suite.
-
+        
         Kwargs:
             filename (str) -- The filename to associate with the dataset
                 (default: None, the name attribute of the pandas_df argument
                 will be used).
-
+            project_id (int or str Relay id) -- The id of the project to associate
+                with the evaluation
+        
         Returns:
             A dict representation of the evaluation.
         """
@@ -370,18 +380,20 @@ class CooperPair(object):
             filename=None,
             project_id=None):
         """Evaluate a expectation_suite on a file.
-
+        
         Args:
-            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite to
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
             fd (file-like) -- A file descriptor or file-like object to
                 evaluate, opened as 'rb'.
-
+        
         Kwargs:
             filename (str) -- The filename to associate with the dataset
                 (default: None, the name attribute of the pandas_df argument
                 will be used).
-
+            project_id (int or str Relay id) -- The id of the project to associate
+                with the evaluation
+        
         Returns:
             A dict representation of the evaluation.
         """
@@ -403,12 +415,18 @@ class CooperPair(object):
             checkpoint_id=None,
             checkpoint_name=None):
         """
-
-        :param pandas_df:
-        :param dataset_label:
-        :param checkpoint_id:
-        :param checkpoint_name:
-        :return:
+        Evaluate a Pandas DataFrame against a checkpoint
+        
+        :param pandas_df: (pandas.DataFrame) The data frame on which to
+                evaluate the checkpoint.
+        :param dataset_label: (str) a human-readable name to associate with
+                the evaluated dataset
+        :param checkpoint_id: (int or str Relay id) the id of the checkpoint
+                to evaluate against
+        :param checkpoint_name: (str) the name of the checkpoint to evaluate
+                against
+                
+        :return: a Great Expectations result object, as returned by .validate method
         """
         if not checkpoint_id and not checkpoint_name:
             raise ValueError('must provide checkpoint_id or checkpoint_name')
@@ -434,8 +452,7 @@ class CooperPair(object):
         return ge_results
     
     def update_evaluation(self, evaluation_id, status=None, results=None):
-        """
-        Update an evaluation.
+        """Update an evaluation.
 
         Args:
             evaluation_id (int or str Relay id) -- The id of the evaluation
@@ -681,9 +698,9 @@ class CooperPair(object):
         """
         Convert a Great Expectations expectations_config into a list
         of expectations that can be consumed by Checkpoints
-        :param expectations_config: expectations_config as returned from
+        :param expectations_config: expectations_config dict as returned from
         Great Expectations
-        :return:
+        :return: a list of parsed expectation dicts
         """
         expectations = expectations_config['expectations']
         munged_expectations = []
@@ -700,9 +717,9 @@ class CooperPair(object):
         """
         Convert a Great Expectations expectation list to a list
         of expectations that can be consumed by Checkpoints
-        :param expectations_config: expectations_config as returned from
+        :param expectations: a list of expectations as returned from
         Great Expectations
-        :return:
+        :return: a list of parsed expectation dicts
         """
         munged_expectations = []
     
@@ -769,8 +786,8 @@ class CooperPair(object):
         """Retrieve a JSON representation of a expectation_suite.
 
         Args:
-            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite to
-                retrieve
+            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite
+                to retrieve
             include_inactive (bool) -- If true, evaluations whose isActivated
                 flag is false will be included in the JSON config (default:
                 False)
@@ -887,6 +904,8 @@ class CooperPair(object):
                 dataset (default: false).
             dataset_id (int or str Relay id) -- The id of the dataset to
                 autoinspect (default: None).
+            expectations (list) -- A list of expectations to associate with
+                the expectation_suite
 
         Raises:
             AssertionError if autoinspect is true and dataset_id is not
@@ -1347,9 +1366,10 @@ class CooperPair(object):
             self, checkpoint_id=None, checkpoint_name=None, include_inactive=False):
         """Retrieve a checkpoint as a great_expectations expectations config.
 
-        Args:
+        Kwargs:
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 retrieve
+            checkpoint_name (str) -- The name of the checkpoint to retrieve
             include_inactive (bool) -- If true, evaluations whose isActivated
                 flag is false will be included in the JSON config (default:
                 False).
@@ -1461,10 +1481,10 @@ class CooperPair(object):
         First creates a new expectation suite, which generates new default checkpoint, sensor,
         and datasource for manual file upload. After a new expectation suite is created, the new
         checkpoint is created (and optionally, a new Slack notification)
-        :param checkpoint_name:
-        :param expectations_config:
-        :param slack_webhook:
-        :return:
+        :param checkpoint_name: (str) the name of the checkpoint to be created
+        :param expectations_config: (dict) an expectation config as return by Great Expectations
+        :param slack_webhook: (str) a Slack webhook to route notifications to
+        :return: the dict representation of the checkpoint that was created
         """
         new_expectation_suite = self.add_expectation_suite_from_expectations_config(
             name=checkpoint_name, expectations_config=expectations_config)
@@ -1479,10 +1499,10 @@ class CooperPair(object):
         First creates a new expectation suite, which generates new default checkpoint, sensor,
         and datasource for manual file upload. After a new expectation suite is created, the new
         checkpoint is created (and optionally, a new Slack notification)
-        :param checkpoint_name:
-        :param expectations_list:
-        :param slack_webhook:
-        :return:
+        :param checkpoint_name: (str) the name of the checkpoint to be created
+        :param expectations_list: (list) an expectations list as return by Great Expectations
+        :param slack_webhook: (str) a Slack webhook to route notifications to
+        :return: the dict representation of the checkpoint that was created
         """
         new_expectation_suite = self.add_expectation_suite_from_ge_expectations_list(
             name=checkpoint_name, expectations_list=expectations_list)
