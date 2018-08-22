@@ -636,8 +636,8 @@ class CooperPair(object):
                 name attribute.
         """
         dataset = self.add_dataset(
-            filename or fd.name,
-            project_id
+            project_id,
+            filename or fd.name
         )
 
         presigned_post = dataset['addDataset']['dataset']['locatorDict']['s3Url']
