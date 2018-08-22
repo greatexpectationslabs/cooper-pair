@@ -192,11 +192,11 @@ def test_update_expectation_suite():
 
     #FIXME: Passing createdById should raise an exception in allotrope.
     expectations = [
-            'expectation': {
-                # 'createdById': 1,
-                'expectationType': 'fuar',
-                'expectationKwargs': json.dumps({})
-            },
+        {
+            # 'createdById': 1,
+            'expectationType': 'fuar',
+            'expectationKwargs': json.dumps({})
+        }
     ]
 
     pair.update_expectation_suite(new_expectation_suite_id, expectations=expectations)
