@@ -1447,6 +1447,52 @@ class CooperPair(object):
             ]}
         return expectations_config
 
+    def list_checkpoints(self):
+        """
+        Retrieve all existing checkpoints
+        :return: A dict containing all checkpoints. Ex.:
+        {
+            'allCheckpoints': {
+                'edges': [
+                    {
+                        'node': {
+                            "id": "Q2hlY2twb2ludDox",
+                            "name": "Claims by Race and Gender-UploadCheckpoint",
+                            "tableName": "Humana",
+                            "slug": "claims-by-race-and-gender-upload-checkpoint",
+                            "isActivated": true,
+                            "createdById": 1,
+                            "organizationId": 1,
+                            "projectId": 1,
+                            "expectationSuiteId": 3,
+                            "sensorId": 1
+                        }
+                    }, ...
+                ]
+            }
+        }
+        """
+        return self.query("""
+            query {
+                allCheckpoints {
+                    edges {
+                        node {
+                            id
+                            name
+                            tableName
+                            slug
+                            isActivated
+                            createdById
+                            organizationId
+                            projectId
+                            expectationSuiteId
+                            sensorId
+                        }
+                    }
+                }
+            }
+        """)
+
     def add_checkpoint(
             self,
             name,
