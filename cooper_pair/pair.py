@@ -1622,3 +1622,36 @@ class CooperPair(object):
                 }
             }
             """, variables={'id': checkpoint_id})
+    
+    def get_checkpoint_sensor_validation_object(self, checkpoint_id):
+        """
+        Queries a checkpoint sensor to retrieve all the data necessary to determine
+        if there are any new files to be validated from a sensor's data source
+        :param checkpoint_id: The id of the checkpoint
+        :return: A dict containing the required data, with following shape:
+        {
+            'checkpointSensorValidationObject': {
+                'file_path_to_table_mapper_src': '',
+                's3_bucket': '',
+                's3_prefix': '',
+                'processed_s3_keys': '',
+                'table_name': '',
+                'aws_access_key_id': '',
+                'aws_secret_access_key': ''
+            }
+        }
+        """
+        
+        return self.query("""
+            query checkpointSensorValidationObjectQuery($checkpointId: ID!) {
+                checkpointSensorValidationObject(checkpointId: $checkpointId) {
+                    filePathToTableMapperSrc
+                    s3Bucket
+                    s3Prefix
+                    processedS3Keys
+                    tableName
+                    awsAccessKeyId
+                    awsSecretAccessKey
+                }
+            }
+            """, variables={'checkpointId': checkpoint_id})
