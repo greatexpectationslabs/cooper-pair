@@ -610,6 +610,52 @@ class CooperPair(object):
                 }
             }
         )
+        
+    def add_dataset_simple(self, label, checkpoint_id, locator_dict, project_id=None):
+        """
+        Add a new Dataset object. Bypasses AddDataset mutation logic used for
+        manually uploaded datasets
+        :param label: (string) human readable identifier
+        :param checkpoint_id: (int or string Relay id) id of checkpoint dataset belongs to
+        :param locator_dict: (dict) dict containing data necessary for retrieving dataset. e.g.:
+            {
+                's3_bucket': '',
+                's3_key': ''
+            }
+        :param project_id: (int or string Relay id, optional) id of project dataset belongs to
+        :return: a dict representing the added Dataset
+        """
+        
+        return self.query("""
+            mutation addDatasetMutation($dataset: AddDatasetInput!) {
+                addDataset(input: $dataset) {
+                    dataset {
+                        id
+                        label
+                        project {
+                            id
+                        }
+                        createdBy {
+                            id
+                        }
+                        locatorDict
+                        organization {
+                            id
+                        }
+                    }
+                }
+            }
+            """,
+            variables={
+                'dataset': {
+                    'checkpointId': checkpoint_id,
+                    'locatorDict': json.dumps(locator_dict),
+                    'label': label,
+                    'projectId': project_id,
+                    'simple': True
+                }
+            }
+        )
 
     def add_dataset_from_file(
             self, fd, project_id, filename=None):
