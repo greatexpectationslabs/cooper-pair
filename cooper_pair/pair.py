@@ -299,15 +299,22 @@ class CooperPair(object):
                 addEvaluation(input: $evaluation) {
                 evaluation {
                     id
+                    datasetId
                     dataset {
                         id
+                        label
+                        locatorDict
                     }
+                    checkpointId
                     checkpoint {
                         id
+                        name
                     }
+                    createdById
                     createdBy {
                         id
                     }
+                    organizationId
                     organization {
                         id
                     }
@@ -322,10 +329,18 @@ class CooperPair(object):
                             cursor
                             node {
                                 id
+                                success
+                                summaryObj
+                                expectationType
+                                expectationKwargs
+                                raisedException
+                                exceptionTraceback
+                                evaluationId
                             }
                         }
                     }
                     status
+                    updatedAt
                 }
                 }
             }
@@ -503,6 +518,12 @@ class CooperPair(object):
                             name
                         }
                         results {
+                            pageInfo {
+                                hasNextPage
+                                hasPreviousPage
+                                startCursor
+                                endCursor
+                            }
                             edges {
                                 cursor
                                 node {
