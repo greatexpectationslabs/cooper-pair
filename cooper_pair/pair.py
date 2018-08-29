@@ -1646,6 +1646,7 @@ class CooperPair(object):
             query checkpointSensorValidationObjectQuery($checkpointId: ID!) {
                 checkpointSensorValidationObject(checkpointId: $checkpointId) {
                     sensorId
+                    parsingConfig
                     filePathToTableMapperSrc
                     s3Bucket
                     s3Prefix
