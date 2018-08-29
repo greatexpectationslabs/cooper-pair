@@ -587,7 +587,6 @@ class CooperPair(object):
                 addDataset(input: $dataset) {
                     dataset {
                         id
-                        s3Url
                         label
                         project {
                             id
