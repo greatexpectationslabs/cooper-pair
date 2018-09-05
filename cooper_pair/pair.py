@@ -1723,3 +1723,19 @@ class CooperPair(object):
                 }
             }
             """, variables={'checkpointId': checkpoint_id})
+
+    def add_excluded_path_to_sensor(self, sensor_id, new_excluded_path):
+        return self.query("""
+            mutation updateSensorMutation($sensor: UpdateSensorInput!) {
+                updateSensor(input: $sensor) {
+                    id
+                    excludedPaths
+                }
+            }
+            """, variables={
+                    'sensor': {
+                        'id': sensor_id,
+                        'new_excluded_path': new_excluded_path
+                    }
+                }
+        )
