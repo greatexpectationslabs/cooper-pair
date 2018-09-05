@@ -1738,7 +1738,7 @@ class CooperPair(object):
             """, variables={
                     'sensor': {
                         'id': sensor_id,
-                        'new_excluded_path': new_excluded_path
+                        'newExcludedPath': new_excluded_path
                     }
                 }
         )
