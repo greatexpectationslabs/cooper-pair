@@ -1729,8 +1729,10 @@ class CooperPair(object):
         return self.query("""
             mutation updateSensorMutation($sensor: UpdateSensorInput!) {
                 updateSensor(input: $sensor) {
-                    id
-                    excludedPaths
+                    sensor: {
+                        id
+                        excludedPaths
+                    }
                 }
             }
             """, variables={
