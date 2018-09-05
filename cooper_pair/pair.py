@@ -1725,7 +1725,7 @@ class CooperPair(object):
             }
             """, variables={'checkpointId': checkpoint_id})
 
-    def add_excluded_path_to_sensor(self, sensor_id, new_excluded_path):
+    def add_excluded_path_to_sensor(self, sensor_id, new_excluded_path_dict):
         return self.query("""
             mutation updateSensorMutation($sensor: UpdateSensorInput!) {
                 updateSensor(input: $sensor) {
@@ -1738,7 +1738,7 @@ class CooperPair(object):
             """, variables={
                     'sensor': {
                         'id': sensor_id,
-                        'newExcludedPath': new_excluded_path
+                        'newExcludedPath': json.dumps(new_excluded_path_dict)
                     }
                 }
         )
