@@ -1720,7 +1720,7 @@ class CooperPair(object):
                         sensorConfig
                     }
                 }
-            """,
+            }""",
             variables={
                 'sensor': {
                     'name': name,
@@ -1763,7 +1763,7 @@ class CooperPair(object):
                         sensorConfig
                     }
                 }
-            """,
+            }""",
             variables={
                 'sensor': {
                     'id': sensor_id,
@@ -1865,7 +1865,7 @@ class CooperPair(object):
                         credentialsReference
                     }
                 }
-            """,
+            }""",
             variables={
                 'dataSource': {
                     'name': name,
@@ -1926,7 +1926,7 @@ class CooperPair(object):
                         credentialsReference
                     }
                 }
-            """,
+            }""",
             variables={
                 'dataSource': {
                     'id': data_source_id,
