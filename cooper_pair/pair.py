@@ -1700,6 +1700,19 @@ class CooperPair(object):
         files are evaluated and optionally, an s3 bucket to save file after evaluation,
         :return: (dict) a dict representation of added sensor
         """
+        variables = {
+            'sensor': {
+                'name': name
+            }
+        }
+        
+        if data_source_id:
+            variables['sensor']['dataSourceId'] = data_source_id
+        if excluded_paths:
+            variables['sensor']['excludedPaths'] = excluded_paths
+        if sensor_config:
+            variables['sensor']['sensorConfig'] = sensor_config
+        
         return self.query("""
             mutation addSensorMutation($sensor: AddSensorInput!) {
                 addSensor(input: $sensor) {
@@ -1721,17 +1734,10 @@ class CooperPair(object):
                     }
                 }
             }""",
-            variables={
-                'sensor': {
-                    'name': name,
-                    'dataSourceId': data_source_id,
-                    'excludedPaths': excluded_paths,
-                    'sensorConfig': sensor_config
-                }
-            }
+            variables=variables
         )
         
-    def update_sensor(self, sensor_id, name, data_source_id=None, excluded_paths=None, sensor_config=None):
+    def update_sensor(self, sensor_id, name=None, data_source_id=None, excluded_paths=None, sensor_config=None):
         """
         Updates an existing sensor.
         :param sensor_id: (int or str relay id) id of sensor to update
@@ -1743,6 +1749,21 @@ class CooperPair(object):
         files are evaluated and optionally, an s3 bucket to save file after evaluation,
         :return: (dict) a dict representation of updated sensor
         """
+        variables = {
+            'sensor': {
+                'id': sensor_id
+            }
+        }
+
+        if name:
+            variables['sensor']['name'] = name
+        if data_source_id:
+            variables['sensor']['dataSourceId'] = data_source_id
+        if excluded_paths:
+            variables['sensor']['excludedPaths'] = excluded_paths
+        if sensor_config:
+            variables['sensor']['sensorConfig'] = sensor_config
+            
         return self.query("""
             mutation updateSensorMutation($sensor: UpdateSensorInput!) {
                 updateSensor(input: $sensor) {
@@ -1845,6 +1866,17 @@ class CooperPair(object):
         }
         :return: (dict) a dict representation of the added data source
         """
+        variables = {
+            'dataSource': {
+                'name': name,
+                'type': type,
+                'isActivated': is_activated,
+            }
+        }
+        
+        if credentials_reference:
+            variables['dataSource']['credentialsReference'] = credentials_reference
+        
         return self.query("""
             mutation addDataSourceMutation($dataSource: AddDataSourceInput!) {
                 addDataSource(input: $dataSource) {
@@ -1866,22 +1898,15 @@ class CooperPair(object):
                     }
                 }
             }""",
-            variables={
-                'dataSource': {
-                    'name': name,
-                    'type': type,
-                    'isActivated': is_activated,
-                    'credentialsReference': credentials_reference
-                }
-            }
+            variables=variables
         )
         
     def update_data_source(
             self,
             data_source_id,
-            name,
-            type,
-            is_activated=True,
+            name=None,
+            type=None,
+            is_activated=None,
             test_status=None,
             test_error_message=None,
             credentials_reference=None
@@ -1904,6 +1929,25 @@ class CooperPair(object):
         }
         :return: (dict) a dict representation of the added data source
         """
+        variables = {
+            'dataSource': {
+                'id': data_source_id
+            }
+        }
+
+        if name:
+            variables['dataSource']['name'] = name
+        if type:
+            variables['dataSource']['type'] = type
+        if is_activated:
+            variables['dataSource']['isActivated'] = is_activated
+        if credentials_reference:
+            variables['dataSource']['credentialsReference'] = credentials_reference
+        if test_status:
+            variables['dataSource']['testStatus'] = test_status
+        if test_error_message:
+            variables['dataSource']['testErrorMessage'] = test_error_message
+        
         return self.query("""
             mutation updateDataSourceMutation($dataSource: UpdateDataSourceInput!) {
                 UpdateDataSource(input: $dataSource) {
@@ -1927,15 +1971,5 @@ class CooperPair(object):
                     }
                 }
             }""",
-            variables={
-                'dataSource': {
-                    'id': data_source_id,
-                    'name': name,
-                    'type': type,
-                    'isActivated': is_activated,
-                    'testStatus': test_status,
-                    'testErrorMessage': test_error_message,
-                    'credentialsReference': credentials_reference
-                }
-            }
+            variables=variables
         )
