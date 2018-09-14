@@ -1503,7 +1503,7 @@ class CooperPair(object):
                 in checkpoint['checkpoint']['expectationSuite']['expectations']['edges']
                 if expectation['node']['isActivated']]
         expectations_config = {
-            'meta': {'great_expectations.__version__': '0.4.3'},
+            'meta': {'great_expectations.__version__': '0.4.4'},
             'dataset_name': None,
             'expectations': [
                 {'expectation_type': expectation['expectationType'],
@@ -1689,6 +1689,92 @@ class CooperPair(object):
             }
             """, variables={'id': checkpoint_id})
     
+    def add_sensor(self, name, data_source_id=None, excluded_paths=None, sensor_config=None):
+        """
+        Adds a new sensor.
+        :param name: (str) name to identify sensor
+        :param data_source_id: (int or str relay id) id of associated data source
+        :param excluded_paths: (array of dicts) paths to exclude from evaluation on
+        sensor execution, of form {'path': ..., 'reason': ...}
+        :param sensor_config: (dict) configuration dict with info for specifying which
+        files are evaluated and optionally, an s3 bucket to save file after evaluation,
+        :return: (dict) a dict representation of added sensor
+        """
+        return self.query("""
+            mutation addSensorMutation($sensor: AddSensorInput!) {
+                addSensor(input: $sensor) {
+                    sensor {
+                        id
+                        name
+                        dataSourceId
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                        }
+                        organization {
+                            id
+                            name
+                        }
+                        excludedPaths
+                        sensorConfig
+                    }
+                }
+            """,
+            variables={
+                'sensor': {
+                    'name': name,
+                    'dataSourceId': data_source_id,
+                    'excludedPaths': excluded_paths,
+                    'sensorConfig': sensor_config
+                }
+            }
+        )
+        
+    def update_sensor(self, sensor_id, name, data_source_id=None, excluded_paths=None, sensor_config=None):
+        """
+        Updates an existing sensor.
+        :param sensor_id: (int or str relay id) id of sensor to update
+        :param name: (str) name to identify sensor
+        :param data_source_id: (int or str relay id) id of associated data source
+        :param excluded_paths: (array of dicts) paths to exclude from evaluation on
+        sensor execution, of form {'path': ..., 'reason': ...}
+        :param sensor_config: (dict) configuration dict with info for specifying which
+        files are evaluated and optionally, an s3 bucket to save file after evaluation,
+        :return: (dict) a dict representation of updated sensor
+        """
+        return self.query("""
+            mutation updateSensorMutation($sensor: UpdateSensorInput!) {
+                updateSensor(input: $sensor) {
+                    sensor {
+                        id
+                        name
+                        dataSourceId
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                        }
+                        organization {
+                            id
+                            name
+                        }
+                        excludedPaths
+                        sensorConfig
+                    }
+                }
+            """,
+            variables={
+                'sensor': {
+                    'id': sensor_id,
+                    'name': name,
+                    'dataSourceId': data_source_id,
+                    'excludedPaths': excluded_paths,
+                    'sensorConfig': sensor_config
+                }
+            }
+        )
+    
     def get_checkpoint_sensor_validation_object(self, checkpoint_id):
         """
         Queries a checkpoint sensor to retrieve all the data necessary to determine
@@ -1741,4 +1827,115 @@ class CooperPair(object):
                         'newExcludedPathDict': json.dumps(new_excluded_path_dict)
                     }
                 }
+        )
+    
+    def add_data_source(self, name, type, is_activated=True, credentials_reference=None):
+        """
+        Adds a new data source.
+        :param name: (str) name to identify data source
+        :param type: (str) type of data source (i.e. 's3', 'database')
+        :param is_activated: (bool) active status
+        :param credentials_reference: (dict) dict configuration with info on how to
+        connect to data source, e.g. {
+            's3_staging_bucket': ...,
+            'aws_access_key_id': ...,
+            'aws_secret_access_key': ...,
+            's3_bucket': ...,
+            'prefix': ...
+        }
+        :return: (dict) a dict representation of the added data source
+        """
+        return self.query("""
+            mutation addDataSourceMutation($dataSource: AddDataSourceInput!) {
+                addDataSource(input: $dataSource) {
+                    dataSource {
+                        id
+                        name
+                        type
+                        isActivated
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                        }
+                        organization {
+                            id
+                            name
+                        }
+                        credentialsReference
+                    }
+                }
+            """,
+            variables={
+                'dataSource': {
+                    'name': name,
+                    'type': type,
+                    'isActivated': is_activated,
+                    'credentialsReference': credentials_reference
+                }
+            }
+        )
+        
+    def update_data_source(
+            self,
+            data_source_id,
+            name,
+            type,
+            is_activated=True,
+            test_status=None,
+            test_error_message=None,
+            credentials_reference=None
+    ):
+        """
+        Updates an existing data source
+        :param data_source_id: (int or str relay id) id of data source to update
+        :param name: (str) name to identify data source
+        :param type: (str) type of data source (i.e. 's3', 'database')
+        :param is_activated: (bool) active status
+        :param test_status: (str) test status of data source (None, 'success', 'failed')
+        :param test_error_message: (str) optional, error message of failed test
+        :param credentials_reference: (dict) dict configuration with info on how to
+        connect to data source, e.g. {
+            's3_staging_bucket': ...,
+            'aws_access_key_id': ...,
+            'aws_secret_access_key': ...,
+            's3_bucket': ...,
+            'prefix': ...
+        }
+        :return: (dict) a dict representation of the added data source
+        """
+        return self.query("""
+            mutation updateDataSourceMutation($dataSource: UpdateDataSourceInput!) {
+                UpdateDataSource(input: $dataSource) {
+                    dataSource {
+                        id
+                        name
+                        type
+                        isActivated
+                        testStatus
+                        testErrorMessage
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                        }
+                        organization {
+                            id
+                            name
+                        }
+                        credentialsReference
+                    }
+                }
+            """,
+            variables={
+                'dataSource': {
+                    'id': data_source_id,
+                    'name': name,
+                    'type': type,
+                    'isActivated': is_activated,
+                    'testStatus': test_status,
+                    'testErrorMessage': test_error_message,
+                    'credentialsReference': credentials_reference
+                }
+            }
         )
