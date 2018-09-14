@@ -1950,7 +1950,7 @@ class CooperPair(object):
         
         return self.query("""
             mutation updateDataSourceMutation($dataSource: UpdateDataSourceInput!) {
-                UpdateDataSource(input: $dataSource) {
+                updateDataSource(input: $dataSource) {
                     dataSource {
                         id
                         name
