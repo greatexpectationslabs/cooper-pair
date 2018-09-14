@@ -1709,9 +1709,9 @@ class CooperPair(object):
         if data_source_id:
             variables['sensor']['dataSourceId'] = data_source_id
         if excluded_paths:
-            variables['sensor']['excludedPaths'] = excluded_paths
+            variables['sensor']['excludedPaths'] = json.dumps(excluded_paths)
         if sensor_config:
-            variables['sensor']['sensorConfig'] = sensor_config
+            variables['sensor']['sensorConfig'] = json.dumps(sensor_config)
         
         return self.query("""
             mutation addSensorMutation($sensor: AddSensorInput!) {
@@ -1760,9 +1760,9 @@ class CooperPair(object):
         if data_source_id:
             variables['sensor']['dataSourceId'] = data_source_id
         if excluded_paths:
-            variables['sensor']['excludedPaths'] = excluded_paths
+            variables['sensor']['excludedPaths'] = json.dumps(excluded_paths)
         if sensor_config:
-            variables['sensor']['sensorConfig'] = sensor_config
+            variables['sensor']['sensorConfig'] = json.dumps(sensor_config)
             
         return self.query("""
             mutation updateSensorMutation($sensor: UpdateSensorInput!) {
@@ -1875,7 +1875,7 @@ class CooperPair(object):
         }
         
         if credentials_reference:
-            variables['dataSource']['credentialsReference'] = credentials_reference
+            variables['dataSource']['credentialsReference'] = json.dumps(credentials_reference)
         
         return self.query("""
             mutation addDataSourceMutation($dataSource: AddDataSourceInput!) {
@@ -1939,10 +1939,10 @@ class CooperPair(object):
             variables['dataSource']['name'] = name
         if type:
             variables['dataSource']['type'] = type
-        if is_activated:
+        if is_activated or is_activated is False:
             variables['dataSource']['isActivated'] = is_activated
         if credentials_reference:
-            variables['dataSource']['credentialsReference'] = credentials_reference
+            variables['dataSource']['credentialsReference'] = json.dumps(credentials_reference)
         if test_status:
             variables['dataSource']['testStatus'] = test_status
         if test_error_message:
