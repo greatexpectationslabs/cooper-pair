@@ -544,6 +544,36 @@ class CooperPair(object):
                 }
             }
             """, variables=variables)
+        
+    def delete_evaluation(self, evaluation_id):
+        """Delete an evaluation (soft delete).
+
+        Args:
+            evaluation_id (int or str Relay id) -- The id of the evaluation
+                to delete
+
+        Returns:
+            A dict containing the parsed results of the mutation.
+        """
+        variables = {
+            'updateEvaluation': {
+                'id': evaluation_id,
+                'deleted': True
+            }
+        }
+
+        return self.query("""
+            mutation($updateEvaluation: UpdateEvaluationInput!) {
+                updateEvaluation(input: $updateEvaluation) {
+                    evaluation {
+                        id
+                        deleted
+                        deletedAt
+                        updatedAt
+                    }
+                }
+            }
+            """, variables=variables)
 
     def get_dataset(self, dataset_id):
         """Retrieve a dataset by its id.
@@ -760,6 +790,36 @@ class CooperPair(object):
         form_data = parse_qs(s3_querystring)
         return requests.post(s3_url, data=form_data, files={'file': fd})
 
+    def delete_dataset(self, dataset_id):
+        """Delete a dataset (soft delete).
+
+        Args:
+            dataset_id (int or str Relay id) -- The id of the dataset
+                to delete
+
+        Returns:
+            A dict containing the parsed results of the mutation.
+        """
+        variables = {
+            'updateDataset': {
+                'id': dataset_id,
+                'deleted': True
+            }
+        }
+
+        return self.query("""
+            mutation($updateDataset: UpdateDatasetInput!) {
+                updateDataset(input: $updateDataset) {
+                    dataset {
+                        id
+                        deleted
+                        deletedAt
+                        updatedAt
+                    }
+                }
+            }
+            """, variables=variables)
+    
     def munge_ge_expectations_config(self, expectations_config):
         """
         Convert a Great Expectations expectations_config into a list
