@@ -14,12 +14,14 @@ except ImportError:  # pragma: nocover
 import warnings
 import requests
 import great_expectations as ge
-
+import pandas as pd
 from gql import gql, Client
 from gql.client import RetryError
 from gql.transport.requests import RequestsHTTPTransport
 from graphql import (parse, introspection_query, build_client_schema)
 
+from maglev.inspector.util import normalize_data_and_infer_types
+from maglev.inspector.custom_ge_datasets import CustomPandasDataset
 
 TIMEOUT = 30
 
@@ -380,6 +382,8 @@ class CooperPair(object):
         Returns:
             A dict representation of the evaluation.
         """
+        
+        
         dataset = self.add_dataset_from_pandas_df(
             pandas_df,
             project_id,
@@ -448,8 +452,7 @@ class CooperPair(object):
             checkpoint_id = self.get_checkpoint_by_name(checkpoint_name)['checkpoint']['id']
         expectations_config = self.get_checkpoint_as_expectations_config(
             checkpoint_id=checkpoint_id, checkpoint_name=checkpoint_name)
-        ge_results = ge.validate(
-            df=pandas_df,
+        ge_results = pandas_df.validate(
             expectations_config=expectations_config,
             result_format="SUMMARY",
             catch_exceptions=True)
