@@ -14,16 +14,12 @@ except ImportError:  # pragma: nocover
 import warnings
 import requests
 import great_expectations as ge
-import pandas as pd
 from gql import gql, Client
 from gql.client import RetryError
 from gql.transport.requests import RequestsHTTPTransport
 from graphql import (parse, introspection_query, build_client_schema)
 
-from maglev.inspector.util import normalize_data_and_infer_types
-from maglev.inspector.custom_ge_datasets import CustomPandasDataset
-
-TIMEOUT = 30
+TIMEOUT = 60
 
 MAX_RETRIES = 10
 
