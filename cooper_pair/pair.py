@@ -1909,6 +1909,20 @@ class CooperPair(object):
                 }
         )
     
+    def trigger_sensor(self, sensor_id):
+        return self.query("""
+            mutation triggerSensorMutation($sensor: triggerSensorInput!) {
+                triggerSensor(input: $sensor) {
+                    evaluation_ids
+                }
+            }
+            """, variables={
+                    'sensor': {
+                        'id': sensor_id,
+                    }
+                }
+        )
+    
     def add_data_source(self, name, type, is_activated=True, credentials_reference=None):
         """
         Adds a new data source.
