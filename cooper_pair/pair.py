@@ -1913,7 +1913,7 @@ class CooperPair(object):
         return self.query("""
             mutation triggerSensorMutation($sensor: TriggerSensorInput!) {
                 triggerSensor(input: $sensor) {
-                    evaluation_ids
+                    evaluationIds
                 }
             }
             """, variables={
