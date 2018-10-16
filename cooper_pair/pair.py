@@ -1911,7 +1911,7 @@ class CooperPair(object):
     
     def trigger_sensor(self, sensor_id):
         return self.query("""
-            mutation triggerSensorMutation($sensor: triggerSensorInput!) {
+            mutation triggerSensorMutation($sensor: TriggerSensorInput!) {
                 triggerSensor(input: $sensor) {
                     evaluation_ids
                 }
