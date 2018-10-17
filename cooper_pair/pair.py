@@ -1612,6 +1612,9 @@ class CooperPair(object):
                             projectId
                             expectationSuiteId
                             sensorId
+                            sensor {
+                                type
+                            }
                         }
                     }
                 }
