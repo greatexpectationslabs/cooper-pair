@@ -178,8 +178,8 @@ class CooperPair(object):
         if not unauthenticated:
             if not self.token:
                 warnings.warn(
-                    'Client not authenticated. Expect queries to fail. '
-                    'Please call CooperPair.login(email, password).')
+                    'Client not authenticated. Attempting to authenticate '
+                    'using stored credentials...')
 
         query_gql = gql(query)
         
