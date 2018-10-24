@@ -2024,13 +2024,18 @@ class CooperPair(object):
         Returns:
             The config property value.
         """
-        return self.query("""
+        config_property = self.query("""
             query configPropertyQuery($name: String!) {
                 configProperty(name: $name) {
                     value
                 }
             }
-            """, variables={'name': name})['configProperty']['value']
+            """, variables={'name': name})['configProperty']
+        
+        if config_property:
+            return config_property['value']
+        else:
+            return None
 
     def list_config_properties(self):
         return self.query("""{
