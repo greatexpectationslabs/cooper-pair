@@ -2022,17 +2022,15 @@ class CooperPair(object):
                 to retrieve
 
         Returns:
-            A dict containing the parsed config property.
+            The config property value.
         """
         return self.query("""
             query configPropertyQuery($name: String!) {
                 configProperty(name: $name) {
-                    id
-                    name
                     value
                 }
             }
-            """, variables={'name': name})
+            """, variables={'name': name})['configProperty']['value']
 
     def list_config_properties(self):
         return self.query("""{
