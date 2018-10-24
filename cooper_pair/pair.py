@@ -2013,3 +2013,36 @@ class CooperPair(object):
             }""",
             variables=variables
         )
+
+    def get_config_property_by_name(self, name):
+        """Retrieve an existing checkpoint by name.
+
+        Args:
+            name (str) -- The name of the config property
+                to retrieve
+
+        Returns:
+            A dict containing the parsed config property.
+        """
+        return self.query("""
+            query configPropertyQuery($name: String!) {
+                configProperty(name: $name) {
+                    id
+                    name
+                    value
+                }
+            }
+            """, variables={'name': name})
+
+    def list_config_properties(self):
+        return self.query("""{
+            allConfigProperties{
+                edges {
+                    node{
+                        id
+                        name
+                        value
+                    }
+                }
+            }
+        }""")
