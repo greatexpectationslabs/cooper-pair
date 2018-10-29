@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import os
-
 from pip.download import PipSession
 from pip.req import parse_requirements
 from setuptools import (find_packages, setup)
@@ -20,6 +19,7 @@ if __name__ == '__main__':
             session=PipSession()))
     dependency_links = [str(r.url) for r in install_reqs if hasattr(r, 'url')]
     install_reqs = [str(r.req) for r in install_reqs if r.req]
+
     setup(name='cooper_pair',
           version=get_version(),
           author='Superconductive Health',

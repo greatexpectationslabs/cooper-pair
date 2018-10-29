@@ -12,20 +12,19 @@ try:  # pragma: nocover
 except ImportError:  # pragma: nocover
     from urlparse import parse_qs
 import warnings
-
 import requests
-
+import great_expectations as ge
 from gql import gql, Client
 from gql.client import RetryError
 from gql.transport.requests import RequestsHTTPTransport
 from graphql import (parse, introspection_query, build_client_schema)
 
-
-TIMEOUT = 2
+TIMEOUT = 60
 
 MAX_RETRIES = 10
 
 DQM_GRAPHQL_URL = os.environ.get('DQM_GRAPHQL_URL')
+
 
 def make_gql_client(transport=None, schema=None, retries=MAX_RETRIES,
                     timeout=TIMEOUT):
@@ -62,37 +61,6 @@ def generate_slug(name):
     """
     # TODO: this functionality should move to the server
     return name.lower().replace(' ', '-')
-
-
-def generate_questions(expectations):
-    """Utility function to generate questions from expectations.
-
-    Args:
-        expectations (list) - A list of expectation dicts, in the form
-            returned by great_expectations.
-
-    Returns:
-        A list of dicts representing questions, ready for GraphQL.
-    """
-
-    questions = []
-    sequence_number = 0
-    # TODO: sort by the ordinary sort order for columns here
-    for expectation in expectations:
-        munged = {
-            # 'createdById': 1,  # TODO: this should be passed in
-            'expectationType': expectation['expectation_type'],
-            'expectationKwargs': json.dumps(expectation['kwargs']),
-            'isActivated': expectation.get('isActivated') or True
-        }
-        # TODO: we need to actually come up with a good representation of the
-        # question object
-        questions.append(
-            {'questionObj': json.dumps({'title': 'Placeholder'}),
-             'expectation': munged,
-             'sequenceNumber': sequence_number})
-        sequence_number += 1
-    return questions
 
 
 class CooperPair(object):
@@ -210,8 +178,8 @@ class CooperPair(object):
         if not unauthenticated:
             if not self.token:
                 warnings.warn(
-                    'Client not authenticated. Expect queries to fail. '
-                    'Please call CooperPair.login(email, password).')
+                    'Client not authenticated. Attempting to authenticate '
+                    'using stored credentials...')
 
         query_gql = gql(query)
         
@@ -223,8 +191,87 @@ class CooperPair(object):
             self._client = None
             return self.client.execute(query_gql, variable_values=variables)
 
-
-    def add_evaluation(self, dataset_id, checkpoint_id):
+    def munge_ge_evaluation_results(self, ge_results):
+        '''
+        Unpack the Great Expectations result object to match the semi-flattened
+        structure used by Allotrope.
+        :param ge_results: a list of result dicts returned by Great Expectations
+        :return: a list of result dicts that can be consumed by Allotrope
+        '''
+        return [
+            {
+                'success': result['success'],
+            
+                'expectationType': result['expectation_config']['expectation_type'],
+                'expectationKwargs': json.dumps(result['expectation_config']['kwargs']),
+            
+                'raisedException': result['exception_info']['raised_exception'],
+                'exceptionTraceback': result['exception_info']['exception_traceback'],
+                # 'exceptionMessage': result['exception_info']['exception_message'], #FIXME: Allotrope needs a new DB field to store this in
+            
+                'summaryObj': (
+                    json.dumps(result['result'])
+                    if 'result' in result else json.dumps({})
+                )
+            }
+            for result in ge_results]
+    
+    def get_evaluation(self, evaluation_id):
+        """
+        Query an evaluation by id
+        :param evaluation_id: Evaluation id
+        :return: Graphql query result containing Evaluation dict
+        """
+        return self.query("""
+            query evaluationQuery($id: ID!) {
+                evaluation(id: $id) {
+                    id
+                    status
+                    checkpointId
+                    checkpoint {
+                        name
+                    }
+                    dataset {
+                        id
+                        label
+                    }
+                    createdBy {
+                        id
+                    }
+                    organization {
+                        id
+                    }
+                    updatedAt
+                    results {
+                        edges {
+                            node {
+                                id
+                                success
+                                summaryObj
+                                expectationType
+                                expectationKwargs
+                                raisedException
+                                exceptionTraceback
+                                evaluationId
+                                expectationId
+                            }
+                        }
+                    }
+                }
+            }
+            """,
+            variables={'id': evaluation_id}
+        )
+    
+    def add_evaluation(
+            self,
+            dataset_id=None,
+            checkpoint_id=None,
+            checkpoint_name=None,
+            delay_evaluation=False,
+            results=None,
+            status=None
+    ):
         """Add a new evaluation.
 
         Args:
@@ -232,24 +279,40 @@ class CooperPair(object):
                 to run the evaluation.
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
-
+            checkpoint_name (str) -- The name of the checkpoint to evaluate
         Returns:
             A dict containing the parsed results of the mutation.
         """
+        if not checkpoint_id and not checkpoint_name:
+            raise ValueError('must provide checkpoint_id or checkpoint_name')
+        
+        if results is not None:
+            if all([x['success'] for x in results]):
+                status = 'success'
+            else:
+                status = 'failed'
+                
         return self.query("""
             mutation addEvaluationMutation($evaluation: AddEvaluationInput!) {
                 addEvaluation(input: $evaluation) {
                 evaluation {
                     id
+                    datasetId
                     dataset {
                         id
+                        label
+                        locatorDict
                     }
+                    checkpointId
                     checkpoint {
                         id
+                        name
                     }
+                    createdById
                     createdBy {
                         id
                     }
+                    organizationId
                     organization {
                         id
                     }
@@ -264,10 +327,18 @@ class CooperPair(object):
                             cursor
                             node {
                                 id
+                                success
+                                summaryObj
+                                expectationType
+                                expectationKwargs
+                                raisedException
+                                exceptionTraceback
+                                evaluationId
                             }
                         }
                     }
                     status
+                    updatedAt
                 }
                 }
             }
@@ -276,9 +347,123 @@ class CooperPair(object):
             'evaluation': {
                 'datasetId': dataset_id,
                 'checkpointId': checkpoint_id,
+                'checkpointName': checkpoint_name,
+                'delayEvaluation': delay_evaluation,
+                'results': results,
+                'status': status
             }
         })
+    
+    def evaluate_checkpoint_on_pandas_df(
+            self,
+            checkpoint_id,
+            pandas_df,
+            filename=None,
+            project_id=None):
+        """Evaluate a expectation_suite on a pandas.DataFrame.
+        
+        Args:
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
+                evaluate.
+            pandas_df (pandas.DataFrame) -- The data frame on which to
+                evaluate the expectation_suite.
+        
+        Kwargs:
+            filename (str) -- The filename to associate with the dataset
+                (default: None, the name attribute of the pandas_df argument
+                will be used).
+            project_id (int or str Relay id) -- The id of the project to associate
+                with the evaluation
+        
+        Returns:
+            A dict representation of the evaluation.
+        """
+        
+        
+        dataset = self.add_dataset_from_pandas_df(
+            pandas_df,
+            project_id,
+            filename=filename)
+        return self.add_evaluation(
+            dataset['dataset']['id'],
+            checkpoint_id
+        )
 
+    def evaluate_checkpoint_on_file(
+            self,
+            checkpoint_id,
+            fd,
+            filename=None,
+            project_id=None):
+        """Evaluate a expectation_suite on a file.
+        
+        Args:
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
+                evaluate.
+            fd (file-like) -- A file descriptor or file-like object to
+                evaluate, opened as 'rb'.
+        
+        Kwargs:
+            filename (str) -- The filename to associate with the dataset
+                (default: None, the name attribute of the pandas_df argument
+                will be used).
+            project_id (int or str Relay id) -- The id of the project to associate
+                with the evaluation
+        
+        Returns:
+            A dict representation of the evaluation.
+        """
+        dataset = self.add_dataset_from_file(
+            fd,
+            project_id,
+            filename=filename)
+        return self.add_evaluation(
+            dataset['dataset']['id'],
+            checkpoint_id
+        )
+
+    def evaluate_pandas_df_against_checkpoint(
+            self,
+            pandas_df,
+            dataset_label,
+            checkpoint_id=None,
+            checkpoint_name=None):
+        """
+        Evaluate a Pandas DataFrame against a checkpoint
+        
+        :param pandas_df: (pandas.DataFrame) The data frame on which to
+                evaluate the checkpoint.
+        :param dataset_label: (str) a human-readable name to associate with
+                the evaluated dataset
+        :param checkpoint_id: (int or str Relay id) the id of the checkpoint
+                to evaluate against
+        :param checkpoint_name: (str) the name of the checkpoint to evaluate
+                against
+                
+        :return: a Great Expectations result object, as returned by .validate method
+        """
+        if not checkpoint_id and not checkpoint_name:
+            raise ValueError('must provide checkpoint_id or checkpoint_name')
+        if not checkpoint_id:
+            checkpoint_id = self.get_checkpoint_by_name(checkpoint_name)['checkpoint']['id']
+        expectations_config = self.get_checkpoint_as_expectations_config(
+            checkpoint_id=checkpoint_id, checkpoint_name=checkpoint_name)
+        ge_results = pandas_df.validate(
+            expectations_config=expectations_config,
+            result_format="SUMMARY",
+            catch_exceptions=True)
+        results = ge_results['results']
+        munged_results = self.munge_ge_evaluation_results(ge_results=results)
+        new_dataset = self.add_dataset(project_id=1, label=dataset_label)
+        new_dataset_id = new_dataset['addDataset']['dataset']['id']
+        self.add_evaluation(
+            dataset_id=new_dataset_id,
+            checkpoint_id=checkpoint_id,
+            delay_evaluation=True,
+            results=munged_results
+        )
+        return ge_results
+    
     def update_evaluation(self, evaluation_id, status=None, results=None):
         """Update an evaluation.
 
@@ -299,6 +484,11 @@ class CooperPair(object):
         }
         if results is not None:
             variables['updateEvaluation']['results'] = results
+            if all([x['success'] for x in results]):
+                status = 'success'
+            else:
+                status = 'failed'
+            
         if status is not None:
             variables['updateEvaluation']['status'] = status
 
@@ -315,7 +505,8 @@ class CooperPair(object):
                         }
                         dataset {
                             id
-                            filename
+                            label
+                            locatorDict
                         }
                         organizationId
                         organization {
@@ -326,6 +517,12 @@ class CooperPair(object):
                             name
                         }
                         results {
+                            pageInfo {
+                                hasNextPage
+                                hasPreviousPage
+                                startCursor
+                                endCursor
+                            }
                             edges {
                                 cursor
                                 node {
@@ -345,8 +542,37 @@ class CooperPair(object):
                     }
                 }
             }
-            """
-            , variables=variables)
+            """, variables=variables)
+        
+    def delete_evaluation(self, evaluation_id):
+        """Delete an evaluation (soft delete).
+
+        Args:
+            evaluation_id (int or str Relay id) -- The id of the evaluation
+                to delete
+
+        Returns:
+            A dict containing the parsed results of the mutation.
+        """
+        variables = {
+            'updateEvaluation': {
+                'id': evaluation_id,
+                'deleted': True
+            }
+        }
+
+        return self.query("""
+            mutation($updateEvaluation: UpdateEvaluationInput!) {
+                updateEvaluation(input: $updateEvaluation) {
+                    evaluation {
+                        id
+                        deleted
+                        deletedAt
+                        updatedAt
+                    }
+                }
+            }
+            """, variables=variables)
 
     def get_dataset(self, dataset_id):
         """Retrieve a dataset by its id.
@@ -362,14 +588,14 @@ class CooperPair(object):
             query datasetQuery($id: ID!) {
                 dataset(id: $id) {
                     id
+                    label
                     project {
                         id
                     }
                     createdBy {
                         id
                     }
-                    filename
-                    s3Key
+                    locatorDict
                     organization {
                         id
                     }
@@ -379,7 +605,20 @@ class CooperPair(object):
             variables={'id': dataset_id}
         )
 
-    def add_dataset(self, filename, project_id):
+    def list_datasets(self):
+        return self.query("""{
+            allDatasets{
+                edges {
+                    node{
+                        id
+                        label
+                        locatorDict
+                    }
+                }
+            }
+        }""")
+
+    def add_dataset(self, project_id, filename=None, label=None):
         """Add a new dataset object.
 
         Users should probably not call this function directly. Instead,
@@ -396,31 +635,141 @@ class CooperPair(object):
         return self.query("""
             mutation addDatasetMutation($dataset: AddDatasetInput!) {
                 addDataset(input: $dataset) {
-                dataset {
-                    id
-                    project {
-                    id
+                    dataset {
+                        id
+                        label
+                        project {
+                            id
+                        }
+                        createdBy {
+                            id
+                        }
+                        locatorDict
+                        organization {
+                            id
+                        }
                     }
-                    createdBy {
-                    id
-                    }
-                    filename
-                    s3Url
-                    s3Key
-                    organization {
-                    id
-                    }
-                }
                 }
             }
             """,
             variables={
                 'dataset': {
-                    'filename': filename,
+                    'locatorDict': json.dumps({'filename': filename}) if filename else json.dumps({}),
                     'projectId': project_id,
+                    'label': label
                 }
             }
         )
+        
+    def add_dataset_simple(self, label, checkpoint_id, locator_dict, project_id=None):
+        """
+        Add a new Dataset object. Bypasses AddDataset mutation logic used for
+        manually uploaded datasets
+        :param label: (string) human readable identifier
+        :param checkpoint_id: (int or string Relay id) id of checkpoint dataset belongs to
+        :param locator_dict: (dict) dict containing data necessary for retrieving dataset. e.g.:
+            {
+                's3_bucket': '',
+                's3_key': ''
+            }
+        :param project_id: (int or string Relay id, optional) id of project dataset belongs to
+        :return: a dict representing the added Dataset
+        """
+        
+        return self.query("""
+            mutation addDatasetMutation($dataset: AddDatasetInput!) {
+                addDataset(input: $dataset) {
+                    dataset {
+                        id
+                        label
+                        project {
+                            id
+                        }
+                        createdBy {
+                            id
+                        }
+                        locatorDict
+                        organization {
+                            id
+                        }
+                    }
+                }
+            }
+            """,
+            variables={
+                'dataset': {
+                    'checkpointId': checkpoint_id,
+                    'locatorDict': json.dumps(locator_dict),
+                    'label': label,
+                    'projectId': project_id,
+                    'simple': True
+                }
+            }
+        )
+
+    def add_dataset_from_file(
+            self, fd, project_id, filename=None):
+        """Add a new dataset from a file or file-like object.
+
+        Args:
+            fd (file-like) -- A file descriptor or file-like object to add
+                as a new dataset, opened as 'rb'.
+            project_id (int or str Relay id) -- The id of the project to which
+                the dataset belongs.
+
+        Kwargs:
+            filename (str) -- The filename to associate with the dataset
+                (default: None, the name attribute of the fd argument will be
+                used). Note that in the case of file-like objects without
+                names (e.g. py2 StringIO.StringIO), this must be set.
+
+        Returns:
+            A dict representation of the dataset.
+
+        Raises:
+            AttributeError, if filename is not set and fd does not have a
+                name attribute.
+        """
+        dataset = self.add_dataset(
+            project_id,
+            filename or fd.name
+        )
+
+        presigned_post = dataset['addDataset']['dataset']['s3Url']
+
+        self.upload_dataset(presigned_post, fd)
+
+        return self.get_dataset(dataset['addDataset']['dataset']['id'])
+
+    def add_dataset_from_pandas_df(
+            self, pandas_df, project_id, filename=None):
+        """Add a new dataset from a pandas.DataFrame.
+
+        Args:
+            pandas_df (pandas.DataFrame) -- The data frame to add.
+            project_id (int or str Relay id) -- The id of the project to which
+                the dataset belongs.
+
+        Kwargs:
+            filename (str) -- The filename to associate with the dataset
+                (default: None, the name attribute of the pandas_df argument
+                will be used).
+
+        Returns:
+            A dict representation of the dataset.
+
+        Raises:
+            AttributeError, if filename is not set and pandas_df does not have
+                a name attribute.
+        """
+        with tempfile.TemporaryFile(mode='w+') as fd:
+            pandas_df.to_csv(fd, encoding='UTF_8')
+            fd.seek(0)
+            return self.add_dataset_from_file(
+                fd,
+                project_id,
+                filename=(filename or pandas_df.name)
+            )
 
     def upload_dataset(self, presigned_post, fd):
         """Utility function to upload a file to S3.
@@ -440,48 +789,90 @@ class CooperPair(object):
         form_data = parse_qs(s3_querystring)
         return requests.post(s3_url, data=form_data, files={'file': fd})
 
-    def add_checkpoint(self, name, autoinspect=False, dataset_id=None):
-        """Add a new checkpoint.
-
-        Users should probably not call this function directly. Instead,
-        consider add_checkpoint_from_expectations_config.
+    def delete_dataset(self, dataset_id):
+        """Delete a dataset (soft delete).
 
         Args:
-            name (str) -- The name of the checkpoint to create.
-
-        Kwargs:
-            autoinspect (bool) -- Flag to populate the checkpoint with
-                single-column expectations generated by autoinspection of a
-                dataset (default: false).
-            dataset_id (int or str Relay id) -- The id of the dataset to
-                autoinspect (default: None).
-
-        Raises:
-            AssertionError if autoinspect is true and dataset_id is not
-            present, or if dataset_id is present and autoinspect is false.
+            dataset_id (int or str Relay id) -- The id of the dataset
+                to delete
 
         Returns:
             A dict containing the parsed results of the mutation.
         """
-        # TODO: implement nested object creation for addCheckpoint
-        if autoinspect:
-            assert dataset_id, 'Must pass a dataset_id when autoinspecting.'
-        else:
-            assert dataset_id is None, 'Do not pass a dataset_id if not ' \
-                'autoinspecting.'
+        variables = {
+            'updateDataset': {
+                'id': dataset_id,
+                'deleted': True
+            }
+        }
+
         return self.query("""
-            mutation addCheckpointMutation($checkpoint: AddCheckpointInput!) {
-                addCheckpoint(input: $checkpoint) {
-                checkpoint {
-                    id
-                    name
-                    slug
-                    autoinspectionStatus
-                    project {
-                    id
+            mutation($updateDataset: UpdateDatasetInput!) {
+                updateDataset(input: $updateDataset) {
+                    dataset {
+                        id
+                        deleted
+                        deletedAt
+                        updatedAt
                     }
-                    createdBy {
+                }
+            }
+            """, variables=variables)
+    
+    def munge_ge_expectations_config(self, expectations_config):
+        """
+        Convert a Great Expectations expectations_config into a list
+        of expectations that can be consumed by Checkpoints
+        :param expectations_config: expectations_config dict as returned from
+        Great Expectations
+        :return: a list of parsed expectation dicts
+        """
+        expectations = expectations_config['expectations']
+        munged_expectations = []
+    
+        for expectation in expectations:
+            munged_expectations.append({
+                'expectationType': expectation['expectation_type'],
+                'expectationKwargs': json.dumps(expectation['kwargs'])
+            })
+    
+        return munged_expectations
+
+    def munge_ge_expectations_list(self, expectations):
+        """
+        Convert a Great Expectations expectation list to a list
+        of expectations that can be consumed by Checkpoints
+        :param expectations: a list of expectations as returned from
+        Great Expectations
+        :return: a list of parsed expectation dicts
+        """
+        munged_expectations = []
+    
+        for expectation in expectations:
+            munged_expectations.append({
+                'expectationType': expectation['expectation_type'],
+                'expectationKwargs': json.dumps(expectation['kwargs'])
+            })
+    
+        return munged_expectations
+
+    def get_expectation_suite(self, expectation_suite_id):
+        """Retrieve an existing expectation_suite.
+
+        Args:
+            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite
+                to retrieve
+
+        Returns:
+            A dict containing the parsed expectation_suite.
+        """
+        return self.query("""
+            query expectationSuiteQuery($id: ID!) {
+                expectationSuite(id: $id) {
                     id
+                    autoinspectionStatus
+                    organization {
+                        id
                     }
                     expectations {
                         pageInfo {
@@ -494,10 +885,127 @@ class CooperPair(object):
                             cursor
                             node {
                                 id
+                                expectationType
+                                expectationKwargs
+                                isActivated
+                                createdBy {
+                                    id
+                                }
+                                organization {
+                                    id
+                                }
+                                expectationSuite {
+                                    id
+                                }
                             }
                         }
                     }
-                    sections {
+                }
+            }
+            """,
+            variables={'id': expectation_suite_id}
+        )
+
+    def get_expectation_suite_as_json_string(
+            self, expectation_suite_id, include_inactive=False):
+        """Retrieve a JSON representation of a expectation_suite.
+
+        Args:
+            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite
+                to retrieve
+            include_inactive (bool) -- If true, evaluations whose isActivated
+                flag is false will be included in the JSON config (default:
+                False)
+
+        Returns:
+            A JSON representation of the expectation_suite.
+        """
+        expectation_suite = self.get_expectation_suite(expectation_suite_id)['expectationSuite']
+        
+        if include_inactive:
+            expectations = [
+                expectation['node']
+                for expectation
+                in expectation_suite['expectations']['edges']]
+        else:
+            expectations = [
+                expectation['node']
+                for expectation
+                in expectation_suite['expectations']['edges']
+                if expectation['node']['isActivated']]
+
+        return json.dumps(
+            {'expectations': [
+                {
+                    'expectation_type': expectation['expectationType'],
+                    'kwargs': json.loads(expectation['expectationKwargs'])}
+                for expectation in expectations]},
+            indent=2,
+            separators=(',', ': '),
+            sort_keys=True)
+
+    def get_expectation_suite_as_expectations_config(
+            self, expectation_suite_id, include_inactive=False):
+        """Retrieve an expectation suite  as a great_expectations expectations config.
+
+        Kwargs:
+            expectation_suite_id (int or str Relay id) -- The id of the expectation suite to
+                retrieve
+            include_inactive (bool) -- If true, expectations whose isActivated
+                flag is false will be included in the JSON config (default:
+                False).
+
+        Returns:
+            An expectations config dict as returned by
+                great_expectations.dataset.DataSet.get_expectations_config.
+        """
+        expectation_suite = self.get_expectation_suite(expectation_suite_id)['expectationSuite']
+    
+        if include_inactive:
+            expectations = [
+                expectation['node']
+                for expectation
+                in expectation_suite['expectations']['edges']]
+        else:
+            expectations = [
+                expectation['node']
+                for expectation
+                in expectation_suite['expectations']['edges']
+                if expectation['node']['isActivated']]
+        expectations_config = {
+            'meta': {'great_expectations.__version__': '0.4.3'},
+            'dataset_name': None,
+            'expectations': [
+                {'expectation_type': expectation['expectationType'],
+                 'kwargs': json.loads(expectation['expectationKwargs'])}
+                for expectation
+                in expectations
+            ]}
+        return expectations_config
+
+    def list_expectation_suites(self, complex=False):
+        """Retrieve all existing expectation_suites.
+
+        Returns:
+            A dict containing the parsed query.
+        """
+        if not complex:
+            return self.query("""
+                query listExpectationSuiteQuery{
+                    allExpectationSuites {
+                        edges {
+                            node {
+                                id
+                                name
+                            }
+                        }
+                    }
+                }
+            """)
+        else:
+            return self.query("""
+                query listExpectationSuiteQuery{
+                    allExpectationSuites {
                         pageInfo {
                             hasNextPage
                             hasPreviousPage
@@ -508,24 +1016,229 @@ class CooperPair(object):
                             cursor
                             node {
                                 id
+                                name
+                                autoinspectionStatus
+                                organization {
+                                    id
+                                }
+                                expectations {
+                                    pageInfo {
+                                        hasNextPage
+                                        hasPreviousPage
+                                        startCursor
+                                        endCursor
+                                    }
+                                    edges {
+                                        cursor
+                                        node {
+                                            id
+                                            expectationType
+                                            expectationKwargs
+                                            isActivated
+                                            createdBy {
+                                                id
+                                            }
+                                            organization {
+                                                id
+                                            }
+                                            expectationSuite {
+                                                id
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                    organization {
-                    id
-                    }
-                    notifyOn
                 }
+                """
+            )
+
+    def add_expectation_suite(self, name, autoinspect=False, dataset_id=None, expectations=None):
+        """Add a new expectation_suite.
+
+        Users should probably not call this function directly. Instead,
+        consider add_expectation_suite_from_expectations_config.
+
+        Args:
+            name (str) -- The name of the expectation_suite to create.
+
+        Kwargs:
+            autoinspect (bool) -- Flag to populate the expectation_suite with
+                single-column expectations generated by autoinspection of a
+                dataset (default: false).
+            dataset_id (int or str Relay id) -- The id of the dataset to
+                autoinspect (default: None).
+            expectations (list) -- A list of expectations to associate with
+                the expectation_suite
+
+        Raises:
+            AssertionError if autoinspect is true and dataset_id is not
+            present, or if dataset_id is present and autoinspect is false.
+
+        Returns:
+            A dict containing the parsed results of the mutation.
+        """
+        # TODO: implement nested object creation for addExpectationSuite
+        if autoinspect:
+            assert dataset_id, 'Must pass a dataset_id when autoinspecting.'
+        else:
+            assert dataset_id is None, 'Do not pass a dataset_id if not ' \
+                'autoinspecting.'
+        return self.query("""
+            mutation addExpectationSuiteMutation($expectationSuite: AddExpectationSuiteInput!) {
+                addExpectationSuite(input: $expectationSuite) {
+                    expectationSuite {
+                        id
+                        name
+                        slug
+                        autoinspectionStatus
+                        createdBy {
+                        id
+                        }
+                        expectations {
+                            pageInfo {
+                                hasNextPage
+                                hasPreviousPage
+                                startCursor
+                                endCursor
+                            }
+                            edges {
+                                cursor
+                                node {
+                                    id
+                                }
+                            }
+                        }
+                        organization {
+                        id
+                        }
+                    }
                 }
             }
         """,
         variables={
-            'checkpoint': {
+            'expectationSuite': {
                 'name': name,
                 'slug': generate_slug(name),
                 'autoinspect': autoinspect,
-                'datasetId': dataset_id
-            }})
+                'datasetId': dataset_id,
+                'expectations': expectations
+            }
+        })
+    
+    def add_expectation_suite_from_expectations_config(
+            self, expectations_config, name):
+        """Create a new expectation_suite from a great_expectations expectations
+            config.
+
+        Args:
+            expectations_config (dict) - An expectations config as returned by
+                great_expectations.dataset.DataSet.get_expectations_config.
+                Note that this is not validated here or on the server side --
+                failures will occur at evaluation time.
+            name (str) - The name of the expectation_suite to create.
+
+        Returns:
+            A dict containing the parsed expectation_suite.
+        """
+        expectations = self.munge_ge_expectations_config(expectations_config)
+        return self.add_expectation_suite(name=name, expectations=expectations)
+
+    def add_expectation_suite_from_ge_expectations_list(
+            self, expectations_list, name):
+        """Create a new expectation_suite from a great_expectations expectations
+            list.
+
+        Args:
+            expectations_list (list) - A list of Great Expectations
+                formatted expectations
+                Note that this is not validated here or on the server side --
+                failures will occur at evaluation time.
+            name (str) - The name of the expectation_suite to create.
+
+        Returns:
+            A dict containing the parsed expectation_suite.
+        """
+        expectations = self.munge_ge_expectations_list(expectations_list)
+        return self.add_expectation_suite(name=name, expectations=expectations)
+    
+    def update_expectation_suite(
+        self,
+        expectation_suite_id,
+        autoinspection_status=None,
+        expectations=None):
+        """Update an existing expectation_suite.
+
+        Args:
+            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite
+                to update.
+
+        Kwargs:
+            autoinspection_status (str) -- The status of autoinspection, if
+                that is to be updated (default: None, no change).
+            expectations (list) -- A list of dicts representing expectations
+                to be created & added to the expectation_suite (default: None,
+                no change). Note: semantics are append.
+
+        Returns:
+            A dict representing the parsed results of the mutation.
+        """
+        assert any([
+            autoinspection_status is not None,
+            expectations is not None]), \
+            'Must update one of autoinspection_status or expectations'
+
+        variables = {
+            'expectationSuite': {
+                'id': expectation_suite_id
+            }
+        }
+
+        if expectations is not None:
+            variables['expectationSuite']['expectations'] = expectations
+        if autoinspection_status is not None:
+            variables['expectationSuite']['autoinspectionStatus'] = \
+                autoinspection_status
+
+        result = self.query("""
+            mutation updateExpectationSuiteMutation($expectationSuite: UpdateExpectationSuiteInput!) {
+                updateExpectationSuite(input: $expectationSuite) {
+                    expectationSuite {
+                        id
+                        expectations {
+                            pageInfo {
+                                hasNextPage
+                                hasPreviousPage
+                                startCursor
+                                endCursor
+                            }
+                            edges {
+                                cursor
+                                node {
+                                    id
+                                    expectationType
+                                    expectationKwargs
+                                    isActivated
+                                    createdBy {
+                                        id
+                                    }
+                                    organization {
+                                        id
+                                    }
+                                    expectationSuite {
+                                        id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            """,
+            variables=variables
+        )
+        return result
 
     def get_expectation(self, expectation_id):
         """Retrieve an expectation by its id.
@@ -550,10 +1263,7 @@ class CooperPair(object):
                     organization {
                         id
                     }
-                    question {
-                        id
-                    }
-                    checkpoint {
+                    expectationSuite {
                         id
                     }
                 }
@@ -561,17 +1271,17 @@ class CooperPair(object):
             """,
             variables={'id': expectation_id}
         )
-
+    
     def add_expectation(
             self,
-            checkpoint_id,
+            expectation_suite_id,
             expectation_type,
             expectation_kwargs,
         ):
-        """Add a new expectation to a checkpoint.
+        """Add a new expectation to an expectation_suite.
 
         Args:
-            checkpoint_id (int or str Relay id) -- The id of the checkpoint
+            expectation_suite_id (int or str Relay id) -- The id of the expectation_suite
                 to which to add the new expectation.
             expectation_type (str) -- A valid great_expectations expectation
                 type. Note: these are not yet validated by client or
@@ -610,10 +1320,7 @@ class CooperPair(object):
                     organization {
                         id
                     }
-                    question {
-                        id
-                    }
-                    checkpoint {
+                    expectationSuite {
                         id
                     }
                 }
@@ -622,7 +1329,7 @@ class CooperPair(object):
         """,
         variables={
             'expectation': {
-                'checkpointId': checkpoint_id,
+                'expectationSuiteId': expectation_suite_id,
                 'expectationType': expectation_type,
                 'expectationKwargs': expectation_kwargs,
         }})
@@ -701,10 +1408,7 @@ class CooperPair(object):
                     organization {
                         id
                     }
-                    question {
-                        id
-                    }
-                    checkpoint {
+                    expectationSuite {
                         id
                     }
                 }
@@ -718,7 +1422,7 @@ class CooperPair(object):
         """Retrieve an existing checkpoint.
 
         Args:
-            checkpoint_id (int or str Relay id) -- The id of the expectation
+            checkpoint_id (int or str Relay id) -- The id of the checkpoint
                 to retrieve
 
         Returns:
@@ -727,258 +1431,17 @@ class CooperPair(object):
         return self.query("""
             query checkpointQuery($id: ID!) {
                 checkpoint(id: $id) {
-                id
-                autoinspectionStatus
-                project {
                     id
-                }
-                organization {
-                    id
-                }
-                expectations {
-                    pageInfo {
-                        hasNextPage
-                        hasPreviousPage
-                        startCursor
-                        endCursor
-                    }
-                    edges {
-                        cursor
-                        node {
-                            id
-                            expectationType
-                            expectationKwargs
-                            isActivated
-                            createdBy {
-                                id
-                            }
-                            organization {
-                                id
-                            }
-                            question {
-                                id
-                            }
-                            checkpoint {
-                                id
-                            }
-                        }
-                    }
-                }
-                sections {
-                    pageInfo {
-                        hasNextPage
-                        hasPreviousPage
-                        startCursor
-                        endCursor
-                    }
-                    edges {
-                        cursor
-                        node {
-                            id
-                            name
-                            slug
-                            sequenceNumber
-                            createdBy {
-                                id
-                            }
-                            questions {
-                                pageInfo {
-                                    hasNextPage
-                                    hasPreviousPage
-                                    startCursor
-                                    endCursor
-                                }
-                                edges {
-                                    cursor
-                                    node {
-                                        id
-                                        questionObj
-                                        expectation {
-                                            id
-                                        }
-                                        sequenceNumber
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                }
-            }
-            """,
-            variables={'id': checkpoint_id}
-        )
-
-    def list_checkpoints(self, complex=False):
-        """Retrieve all existing checkpoints.
-
-        Returns:
-            A dict containing the parsed query.
-        """
-        if not complex:
-            return self.query("""
-                query listCheckpointQuery{
-                    allCheckpoints {
-                        edges {
-                            node {
-                                id
-                                name
-                            }
-                        }
-                    }
-                }
-            """)
-        else:
-            return self.query("""
-                query listCheckpointQuery{
-                    allCheckpoints {
-                    pageInfo {
-                        hasNextPage
-                        hasPreviousPage
-                        startCursor
-                        endCursor
-                    }
-                    edges {
-                        cursor
-                        node {
+                    name
+                    slug
+                    isActivated
+                    createdBy {
                         id
-                        name
-                        autoinspectionStatus
-                        project {
-                            id
-                        }
-                        organization {
-                            id
-                        }
-                        expectations {
-                            pageInfo {
-                            hasNextPage
-                            hasPreviousPage
-                            startCursor
-                            endCursor
-                            }
-                            edges {
-                            cursor
-                            node {
-                                id
-                                expectationType
-                                expectationKwargs
-                                isActivated
-                                createdBy {
-                                id
-                                }
-                                organization {
-                                id
-                                }
-                                question {
-                                id
-                                }
-                                checkpoint {
-                                id
-                                }
-                            }
-                            }
-                        }
-                        sections {
-                            pageInfo {
-                            hasNextPage
-                            hasPreviousPage
-                            startCursor
-                            endCursor
-                            }
-                            edges {
-                            cursor
-                            node {
-                                id
-                                name
-                                slug
-                                sequenceNumber
-                                createdBy {
-                                id
-                                }
-                                questions {
-                                pageInfo {
-                                    hasNextPage
-                                    hasPreviousPage
-                                    startCursor
-                                    endCursor
-                                }
-                                edges {
-                                    cursor
-                                    node {
-                                    id
-                                    questionObj
-                                    expectation {
-                                        id
-                                    }
-                                    sequenceNumber
-                                    }
-                                }
-                                }
-                            }
-                            }
-                        }
-                        }
+                        firstName
+                        lastName
+                        email
                     }
-                    }
-                }
-                """
-            )
-
-    def update_checkpoint(
-            self,
-            checkpoint_id,
-            autoinspection_status=None,
-            expectations=None,
-            sections=None):
-        """Update an existing checkpoint.
-
-        Args:
-            checkpoint_id (int or str Relay id) -- The id of the checkpoint
-                to update.
-
-        Kwargs:
-            autoinspection_status (str) -- The status of autoinspection, if
-                that is to be updated (default: None, no change).
-            expectations (list) -- A list of dicts representing expectations
-                to be created & added to the checkpoint (default: None,
-                no change). Note: semantics are append.
-            sections (list) -- A list of dicts representing sections, with
-                optionally nested questions and expectations, each to be
-                created and associated (default: None, no change). Note:
-                semantics are append.
-
-        Returns:
-            A dict representing the parsed results of the mutation.
-        """
-        assert any([
-            autoinspection_status is not None,
-            expectations is not None,
-            sections is not None]), \
-            'Must update one of autoinspection_status, expectations, or ' \
-            'sections.'
-        assert not all([expectations is not None, sections is not None]), \
-            'Must not pass both expectations and sections.'
-
-        variables = {
-            'updateCheckpoint': {
-                'id': checkpoint_id
-            }
-        }
-
-        if expectations is not None:
-            variables['updateCheckpoint']['expectations'] = expectations
-        if autoinspection_status is not None:
-            variables['updateCheckpoint']['autoinspectionStatus'] = \
-                autoinspection_status
-        if sections is not None:
-            variables['updateCheckpoint']['sections'] = sections
-
-        result = self.query("""
-                mutation($updateCheckpoint: UpdateCheckpointInput!) {
-                    updateCheckpoint(input: $updateCheckpoint) {
-                    checkpoint {
-                        id
+                    expectationSuite {
                         expectations {
                             pageInfo {
                                 hasNextPage
@@ -999,79 +1462,78 @@ class CooperPair(object):
                                     organization {
                                         id
                                     }
-                                    question {
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            """,
+                          variables={'id': checkpoint_id}
+                          )
+
+    def get_checkpoint_by_name(self, checkpoint_name):
+        """Retrieve an existing checkpoint by name.
+
+        Args:
+            name (str) -- The name of the checkpoint
+                to retrieve
+
+        Returns:
+            A dict containing the parsed checkpoint.
+        """
+        return self.query("""
+            query checkpointQuery($name: String!) {
+                checkpoint(name: $name) {
+                    id
+                    name
+                    slug
+                    isActivated
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    expectationSuite {
+                        expectations {
+                            pageInfo {
+                                hasNextPage
+                                hasPreviousPage
+                                startCursor
+                                endCursor
+                            }
+                            edges {
+                                cursor
+                                node {
+                                    id
+                                    expectationType
+                                    expectationKwargs
+                                    isActivated
+                                    createdBy {
                                         id
                                     }
-                                    checkpoint {
+                                    organization {
                                         id
                                     }
                                 }
                             }
                         }
                     }
-                    }
                 }
+            }
             """,
-            variables=variables
-        )
-        return result
-
-    def add_checkpoint_from_expectations_config(
-            self, expectations_config, name):
-        """Create a new checkpoint from a great_expectations expectations
-            config.
-
-        Args:
-            expectations_config (dict) - An expectations config as returned by
-                great_expectations.dataset.DataSet.get_expectations_config.
-                Note that this is not validated here or on the server side --
-                failures will occur at evaluation time.
-            name (str) - The name of the checkpoint to create.
-
-        Returns:
-            A dict containing the parsed checkpoint.
-        """
-        # FIXME: right now this makes two calls, which is not ideal -- we
-        # should rework the addCheckpoint mutation to accept nested objects
-
-        checkpoint_res = self.add_checkpoint(name)
-        checkpoint_id = checkpoint_res['addCheckpoint']['checkpoint']['id']
-
-        columns = set([
-            expectation['kwargs']['column']
-            for expectation
-            in expectations_config['expectations']])
-
-        expectations_config_by_column = {column: [] for column in columns}
-
-        for expectation in expectations_config['expectations']:
-            column = expectation['kwargs']['column']
-            expectations_config_by_column[column].append(expectation)
-
-        sections = []
-
-        sequence_number = 0
-        for column in columns:
-            sections.append({
-                'name': column,
-                'slug': generate_slug(column),
-                'sequenceNumber': sequence_number,
-                'questions': generate_questions(
-                    expectations_config_by_column[column]
-                )
-                # 'checkpointId': checkpoint_id
-            })
-            sequence_number += 1
-
-        return self.update_checkpoint(checkpoint_id, sections=sections)
+                          variables={'name': checkpoint_name}
+                          )
 
     def get_checkpoint_as_expectations_config(
-            self, checkpoint_id, include_inactive=False):
+            self, checkpoint_id=None, checkpoint_name=None, include_inactive=False):
         """Retrieve a checkpoint as a great_expectations expectations config.
 
-        Args:
+        Kwargs:
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 retrieve
+            checkpoint_name (str) -- The name of the checkpoint to retrieve
             include_inactive (bool) -- If true, evaluations whose isActivated
                 flag is false will be included in the JSON config (default:
                 False).
@@ -1080,20 +1542,27 @@ class CooperPair(object):
             An expectations config dict as returned by
                 great_expectations.dataset.DataSet.get_expectations_config.
         """
-        checkpoint = self.get_checkpoint(checkpoint_id)
+        if not checkpoint_id and not checkpoint_name:
+            raise ValueError('must provide checkpoint_id or checkpoint_name')
+        
+        if checkpoint_id:
+            checkpoint = self.get_checkpoint(checkpoint_id)
+        else:
+            checkpoint = self.get_checkpoint_by_name(checkpoint_name)
+    
         if include_inactive:
             expectations = [
                 expectation['node']
                 for expectation
-                in checkpoint['checkpoint']['expectations']['edges']]
+                in checkpoint['checkpoint']['expectationSuite']['expectations']['edges']]
         else:
             expectations = [
                 expectation['node']
                 for expectation
-                in checkpoint['checkpoint']['expectations']['edges']
+                in checkpoint['checkpoint']['expectationSuite']['expectations']['edges']
                 if expectation['node']['isActivated']]
         expectations_config = {
-            'meta': {'great_expectations.__version__': '0.3.0'},
+            'meta': {'great_expectations.__version__': '0.4.4'},
             'dataset_name': None,
             'expectations': [
                 {'expectation_type': expectation['expectationType'],
@@ -1103,203 +1572,479 @@ class CooperPair(object):
             ]}
         return expectations_config
 
-    def add_dataset_from_file(
-            self, fd, project_id, filename=None):
-        """Add a new dataset from a file or file-like object.
-
-        Args:
-            fd (file-like) -- A file descriptor or file-like object to add
-                as a new dataset, opened as 'rb'.
-            project_id (int or str Relay id) -- The id of the project to which
-                the dataset belongs.
-
-        Kwargs:
-            filename (str) -- The filename to associate with the dataset
-                (default: None, the name attribute of the fd argument will be
-                used). Note that in the case of file-like objects without
-                names (e.g. py2 StringIO.StringIO), this must be set.
-
-        Returns:
-            A dict representation of the dataset.
-
-        Raises:
-            AttributeError, if filename is not set and fd does not have a
-                name attribute.
+    def list_checkpoints(self):
         """
-        dataset = self.add_dataset(
-            filename or fd.name,
-            project_id
-        )
-
-        presigned_post = dataset['addDataset']['dataset']['s3Url']
-
-        self.upload_dataset(presigned_post, fd)
-
-        return self.get_dataset(dataset['addDataset']['dataset']['id'])
-
-    def add_dataset_from_pandas_df(
-            self, pandas_df, project_id, filename=None):
-        """Add a new dataset from a pandas.DataFrame.
-
-        Args:
-            pandas_df (pandas.DataFrame) -- The data frame to add.
-            project_id (int or str Relay id) -- The id of the project to which
-                the dataset belongs.
-
-        Kwargs:
-            filename (str) -- The filename to associate with the dataset
-                (default: None, the name attribute of the pandas_df argument
-                will be used).
-
-        Returns:
-            A dict representation of the dataset.
-
-        Raises:
-            AttributeError, if filename is not set and pandas_df does not have
-                a name attribute.
-        """
-        with tempfile.TemporaryFile(mode='w+') as fd:
-            pandas_df.to_csv(fd, encoding='UTF_8')
-            fd.seek(0)
-            return self.add_dataset_from_file(
-                fd,
-                project_id,
-                filename=(filename or pandas_df.name)
-            )
-
-    def evaluate_checkpoint_on_pandas_df(
-            self,
-            checkpoint_id,
-            pandas_df,
-            filename=None):
-        """Evaluate a checkpoint on a pandas.DataFrame.
-
-        Args:
-            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
-                evaluate.
-            pandas_df (pandas.DataFrame) -- The data frame on which to
-                evaluate the checkpoint.
-
-        Kwargs:
-            filename (str) -- The filename to associate with the dataset
-                (default: None, the name attribute of the pandas_df argument
-                will be used).
-
-        Returns:
-            A dict representation of the evaluation.
-        """
-        checkpoint = self.get_checkpoint(checkpoint_id)
-        project_id = checkpoint['checkpoint']['project']['id']
-        checkpoint_id = checkpoint['checkpoint']['id']
-        dataset = self.add_dataset_from_pandas_df(
-            pandas_df,
-            project_id,
-            filename=filename)
-        return self.add_evaluation(
-            dataset['dataset']['id'],
-            checkpoint_id
-        )
-
-    def evaluate_checkpoint_on_file(
-            self,
-            checkpoint_id,
-            fd,
-            filename=None
-        ):
-        """Evaluate a checkpoint on a file.
-
-        Args:
-            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
-                evaluate.
-            fd (file-like) -- A file descriptor or file-like object to
-                evaluate, opened as 'rb'.
-
-        Kwargs:
-            filename (str) -- The filename to associate with the dataset
-                (default: None, the name attribute of the pandas_df argument
-                will be used).
-
-        Returns:
-            A dict representation of the evaluation.
-        """
-        checkpoint = self.get_checkpoint(checkpoint_id)
-        project_id = checkpoint['checkpoint']['project']['id']
-        checkpoint_id = checkpoint['checkpoint']['id']
-        dataset = self.add_dataset_from_file(
-            fd,
-            project_id,
-            filename=filename)
-        return self.add_evaluation(
-            dataset['dataset']['id'],
-            checkpoint_id
-        )
-
-    def get_checkpoint_as_json_string(
-            self, checkpoint_id, include_inactive=False):
-        """Retrieve a JSON representation of a checkpoint.
-
-        Args:
-            checkpoint_id (int or str Relay id) -- The id of the checkpoint to
-                retrieve
-            include_inactive (bool) -- If true, evaluations whose isActivated
-                flag is false will be included in the JSON config (default:
-                False)
-
-        Returns:
-            A JSON representation of the checkpoint.
-        """
-        checkpoint = self.get_checkpoint(checkpoint_id)
-        if include_inactive:
-            expectations = [
-                expectation['node']
-                for expectation
-                in checkpoint['checkpoint']['expectations']['edges']]
-        else:
-            expectations = [
-                expectation['node']
-                for expectation
-                in checkpoint['checkpoint']['expectations']['edges']
-                if expectation['node']['isActivated']]
-
-        return json.dumps(
-            {'expectations': [
-                {
-                    'expectation_type': expectation['expectationType'],
-                    'kwargs': json.loads(expectation['expectationKwargs'])}
-                for expectation in expectations]},
-            indent=2,
-            separators=(',', ': '),
-            sort_keys=True)
-
-    def list_configured_notifications(self):
-        """Retrieve all existing configured notifications.
-
-        Returns:
-            A dict containing the parsed query.
+        Retrieve all existing checkpoints
+        :return: A dict containing all checkpoints. Ex.:
+        {
+            'allCheckpoints': {
+                'edges': [
+                    {
+                        'node': {
+                            "id": "Q2hlY2twb2ludDox",
+                            "name": "Claims by Race and Gender-UploadCheckpoint",
+                            "tableName": "Humana",
+                            "slug": "claims-by-race-and-gender-upload-checkpoint",
+                            "isActivated": true,
+                            "createdById": 1,
+                            "organizationId": 1,
+                            "projectId": 1,
+                            "expectationSuiteId": 3,
+                            "sensorId": 1
+                        }
+                    }, ...
+                ]
+            }
+        }
         """
         return self.query("""
-            {
-                allConfiguredNotifications {
+            query {
+                allCheckpoints {
                     edges {
-                        cursor
                         node {
                             id
-                            notificationType
-                            value
+                            name
+                            tableName
+                            slug
+                            isActivated
+                            createdById
+                            organizationId
+                            projectId
+                            expectationSuiteId
+                            sensorId
+                            sensor {
+                                type
+                            }
                         }
                     }
                 }
             }
         """)
 
-    def list_datasets(self):
+    def add_checkpoint(
+            self,
+            name,
+            is_activated=True,
+            slack_webhook=None,
+            expectation_suite_id=None,
+            sensor_id=None):
+        """
+        Add a checkpoint.
+        :param name: Name of checkpoint
+        :param is_activated: boolean
+        :param slack_webhook: optional slack webhook address to create
+            condigured_notification on checkpoint creation
+        :param expectation_suite_id: The id of corresponding expectation suite
+        :param sensor_id: The id of corresponding sensor
+        :return: A dict with parsed checkpoint (see query for structure)
+        """
+
+        return self.query("""
+            mutation addCheckpointMutation($checkpoint: AddCheckpointInput!) {
+                addCheckpoint(input: $checkpoint) {
+                    checkpoint {
+                        id
+                        name
+                        slug
+                        isActivated
+                        sensor {
+                            id
+                        }
+                        expectationSuite {
+                            id
+                        }
+                        createdBy {
+                            id
+                        }
+                        organization {
+                            id
+                        }
+                        configuredNotifications {
+                            pageInfo {
+                                hasNextPage
+                                hasPreviousPage
+                                startCursor
+                                endCursor
+                            }
+                            edges {
+                                cursor
+                                node {
+                                    id
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            """,
+            variables={
+                'checkpoint': {
+                    'name': name,
+                    'slug': generate_slug(name),
+                    'isActivated': is_activated,
+                    'expectationSuiteId': expectation_suite_id,
+                    'sensorId': sensor_id,
+                    'slackWebhook': slack_webhook
+                }
+            }
+        )
+
+    def setup_checkpoint_from_ge_expectations_config(
+            self, checkpoint_name, expectations_config, slack_webhook=None):
+        
+        """
+        First creates a new expectation suite, which generates new default checkpoint, sensor,
+        and datasource for manual file upload. After a new expectation suite is created, the new
+        checkpoint is created (and optionally, a new Slack notification)
+        :param checkpoint_name: (str) the name of the checkpoint to be created
+        :param expectations_config: (dict) an expectation config as return by Great Expectations
+        :param slack_webhook: (str) a Slack webhook to route notifications to
+        :return: the dict representation of the checkpoint that was created
+        """
+        new_expectation_suite = self.add_expectation_suite_from_expectations_config(
+            name=checkpoint_name, expectations_config=expectations_config)
+        new_expectation_suite_id = new_expectation_suite['addExpectationSuite']['expectationSuite']['id']
+        return self.add_checkpoint(
+            name=checkpoint_name, expectation_suite_id=new_expectation_suite_id, slack_webhook=slack_webhook
+        )
+        
+    def setup_checkpoint_from_ge_expectations_list(
+            self, checkpoint_name, expectations_list, slack_webhook=None):
+        """
+        First creates a new expectation suite, which generates new default checkpoint, sensor,
+        and datasource for manual file upload. After a new expectation suite is created, the new
+        checkpoint is created (and optionally, a new Slack notification)
+        :param checkpoint_name: (str) the name of the checkpoint to be created
+        :param expectations_list: (list) an expectations list as return by Great Expectations
+        :param slack_webhook: (str) a Slack webhook to route notifications to
+        :return: the dict representation of the checkpoint that was created
+        """
+        new_expectation_suite = self.add_expectation_suite_from_ge_expectations_list(
+            name=checkpoint_name, expectations_list=expectations_list)
+        new_expectation_suite_id = new_expectation_suite['addExpectationSuite']['expectationSuite']['id']
+        return self.add_checkpoint(
+            name=checkpoint_name, expectation_suite_id=new_expectation_suite_id, slack_webhook=slack_webhook
+        )
+
+    def list_configured_notifications_on_checkpoint(self, checkpoint_id):
+        """Retrieve all existing configured notifications for 
+        a given checkpoint_id.
+
+        Returns:
+            A dict containing the parsed query.
+        """
+
+        return self.query("""
+            query checkpointQuery($id: ID!) {
+                checkpoint(id: $id) {
+                    configuredNotifications {
+                        edges {
+                            node {
+                                id
+                                notificationType
+                                value
+                                notifyOn
+                            }
+                        }
+                    }
+                }
+            }
+            """, variables={'id': checkpoint_id})
+    
+    def add_sensor(self, name, data_source_id=None, excluded_paths=None, sensor_config=None):
+        """
+        Adds a new sensor.
+        :param name: (str) name to identify sensor
+        :param data_source_id: (int or str relay id) id of associated data source
+        :param excluded_paths: (array of dicts) paths to exclude from evaluation on
+        sensor execution, of form {'path': ..., 'reason': ...}
+        :param sensor_config: (dict) configuration dict with info for specifying which
+        files are evaluated and optionally, an s3 bucket to save file after evaluation,
+        :return: (dict) a dict representation of added sensor
+        """
+        variables = {
+            'sensor': {
+                'name': name
+            }
+        }
+        
+        if data_source_id:
+            variables['sensor']['dataSourceId'] = data_source_id
+        if excluded_paths:
+            variables['sensor']['excludedPaths'] = json.dumps(excluded_paths)
+        if sensor_config:
+            variables['sensor']['sensorConfig'] = json.dumps(sensor_config)
+        
+        return self.query("""
+            mutation addSensorMutation($sensor: AddSensorInput!) {
+                addSensor(input: $sensor) {
+                    sensor {
+                        id
+                        name
+                        dataSourceId
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                        }
+                        organization {
+                            id
+                            name
+                        }
+                        excludedPaths
+                        sensorConfig
+                    }
+                }
+            }""",
+            variables=variables
+        )
+        
+    def update_sensor(self, sensor_id, name=None, data_source_id=None, excluded_paths=None, sensor_config=None):
+        """
+        Updates an existing sensor.
+        :param sensor_id: (int or str relay id) id of sensor to update
+        :param name: (str) name to identify sensor
+        :param data_source_id: (int or str relay id) id of associated data source
+        :param excluded_paths: (array of dicts) paths to exclude from evaluation on
+        sensor execution, of form {'path': ..., 'reason': ...}
+        :param sensor_config: (dict) configuration dict with info for specifying which
+        files are evaluated and optionally, an s3 bucket to save file after evaluation,
+        :return: (dict) a dict representation of updated sensor
+        """
+        variables = {
+            'sensor': {
+                'id': sensor_id
+            }
+        }
+
+        if name:
+            variables['sensor']['name'] = name
+        if data_source_id:
+            variables['sensor']['dataSourceId'] = data_source_id
+        if excluded_paths:
+            variables['sensor']['excludedPaths'] = json.dumps(excluded_paths)
+        if sensor_config:
+            variables['sensor']['sensorConfig'] = json.dumps(sensor_config)
+            
+        return self.query("""
+            mutation updateSensorMutation($sensor: UpdateSensorInput!) {
+                updateSensor(input: $sensor) {
+                    sensor {
+                        id
+                        name
+                        dataSourceId
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                        }
+                        organization {
+                            id
+                            name
+                        }
+                        excludedPaths
+                        sensorConfig
+                    }
+                }
+            }""",
+            variables={
+                'sensor': {
+                    'id': sensor_id,
+                    'name': name,
+                    'dataSourceId': data_source_id,
+                    'excludedPaths': excluded_paths,
+                    'sensorConfig': sensor_config
+                }
+            }
+        )
+
+    def add_excluded_path_to_sensor(self, sensor_id, new_excluded_path_dict):
+        return self.query("""
+            mutation updateSensorMutation($sensor: UpdateSensorInput!) {
+                updateSensor(input: $sensor) {
+                    sensor {
+                        id
+                        excludedPaths
+                    }
+                }
+            }
+            """, variables={
+                    'sensor': {
+                        'id': sensor_id,
+                        'newExcludedPathDict': json.dumps(new_excluded_path_dict)
+                    }
+                }
+        )
+    
+    def trigger_sensor(self, sensor_id):
+        return self.query("""
+            mutation triggerSensorMutation($sensor: TriggerSensorInput!) {
+                triggerSensor(input: $sensor) {
+                    evaluationIds
+                }
+            }
+            """, variables={
+                    'sensor': {
+                        'id': sensor_id,
+                    }
+                }
+        )
+    
+    def add_data_source(self, name, type, is_activated=True, credentials_reference=None):
+        """
+        Adds a new data source.
+        :param name: (str) name to identify data source
+        :param type: (str) type of data source (i.e. 's3', 'database')
+        :param is_activated: (bool) active status
+        :param credentials_reference: (dict) dict configuration with info on how to
+        connect to data source, e.g. {
+            's3_staging_bucket': ...,
+            'aws_access_key_id': ...,
+            'aws_secret_access_key': ...,
+            's3_bucket': ...,
+            'prefix': ...
+        }
+        :return: (dict) a dict representation of the added data source
+        """
+        variables = {
+            'dataSource': {
+                'name': name,
+                'type': type,
+                'isActivated': is_activated,
+            }
+        }
+        
+        if credentials_reference:
+            variables['dataSource']['credentialsReference'] = json.dumps(credentials_reference)
+        
+        return self.query("""
+            mutation addDataSourceMutation($dataSource: AddDataSourceInput!) {
+                addDataSource(input: $dataSource) {
+                    dataSource {
+                        id
+                        name
+                        type
+                        isActivated
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                        }
+                        organization {
+                            id
+                            name
+                        }
+                        credentialsReference
+                    }
+                }
+            }""",
+            variables=variables
+        )
+        
+    def update_data_source(
+            self,
+            data_source_id,
+            name=None,
+            type=None,
+            is_activated=None,
+            test_status=None,
+            test_error_message=None,
+            credentials_reference=None
+    ):
+        """
+        Updates an existing data source
+        :param data_source_id: (int or str relay id) id of data source to update
+        :param name: (str) name to identify data source
+        :param type: (str) type of data source (i.e. 's3', 'database')
+        :param is_activated: (bool) active status
+        :param test_status: (str) test status of data source (None, 'success', 'failed')
+        :param test_error_message: (str) optional, error message of failed test
+        :param credentials_reference: (dict) dict configuration with info on how to
+        connect to data source, e.g. {
+            's3_staging_bucket': ...,
+            'aws_access_key_id': ...,
+            'aws_secret_access_key': ...,
+            's3_bucket': ...,
+            'prefix': ...
+        }
+        :return: (dict) a dict representation of the added data source
+        """
+        variables = {
+            'dataSource': {
+                'id': data_source_id
+            }
+        }
+
+        if name:
+            variables['dataSource']['name'] = name
+        if type:
+            variables['dataSource']['type'] = type
+        if is_activated or is_activated is False:
+            variables['dataSource']['isActivated'] = is_activated
+        if credentials_reference:
+            variables['dataSource']['credentialsReference'] = json.dumps(credentials_reference)
+        if test_status:
+            variables['dataSource']['testStatus'] = test_status
+        if test_error_message:
+            variables['dataSource']['testErrorMessage'] = test_error_message
+        
+        return self.query("""
+            mutation updateDataSourceMutation($dataSource: UpdateDataSourceInput!) {
+                updateDataSource(input: $dataSource) {
+                    dataSource {
+                        id
+                        name
+                        type
+                        isActivated
+                        testStatus
+                        testErrorMessage
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                        }
+                        organization {
+                            id
+                            name
+                        }
+                        credentialsReference
+                    }
+                }
+            }""",
+            variables=variables
+        )
+
+    def get_config_property_by_name(self, name):
+        """Retrieve an existing checkpoint by name.
+
+        Args:
+            name (str) -- The name of the config property
+                to retrieve
+
+        Returns:
+            The config property value.
+        """
+        config_property = self.query("""
+            query configPropertyQuery($name: String!) {
+                configProperty(name: $name) {
+                    value
+                }
+            }
+            """, variables={'name': name})['configProperty']
+        
+        if config_property:
+            return config_property['value']
+        else:
+            return None
+
+    def list_config_properties(self):
         return self.query("""{
-            allDatasets{
+            allConfigProperties{
                 edges {
                     node{
                         id
-                        s3Key
-                        filename
+                        name
+                        value
                     }
                 }
             }
