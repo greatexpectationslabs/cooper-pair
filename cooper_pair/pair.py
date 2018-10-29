@@ -6,7 +6,6 @@ import json
 import os
 import tempfile
 import time
-import traceback
 try:  # pragma: nocover
     from urllib.parse import parse_qs
 except ImportError:  # pragma: nocover
@@ -18,7 +17,6 @@ import requests
 from gql import gql, Client
 from gql.client import RetryError
 from gql.transport.requests import RequestsHTTPTransport
-from graphql import (parse, introspection_query, build_client_schema)
 
 
 TIMEOUT = 2
