@@ -29,16 +29,17 @@ def make_gql_client(transport=None, schema=None, retries=MAX_RETRIES,
     client = None
     counter = 0
     while client is None and counter < retries:
-        try:
-            client = Client(
-                transport=transport,
-                fetch_schema_from_transport=(schema is None),
-                schema=schema,
-                retries=retries)
-        except (requests.ConnectionError, RetryError):
-            warnings.warn('CooperPair failed to connect to allotrope...')
+        start_time = time.time()
+        while ((time.time() - start_time) <= timeout) and client is None:
+            try:
+                client = Client(
+                    transport=transport,
+                    fetch_schema_from_transport=(schema is None),
+                    schema=schema,
+                    retries=retries)
+            except (requests.ConnectionError, RetryError):
+                warnings.warn('CooperPair failed to connect to allotrope...')
         counter += 1
-        time.sleep(timeout)
 
     if client is None:
         raise Exception(
