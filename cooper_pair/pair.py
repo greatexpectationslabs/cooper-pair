@@ -447,13 +447,15 @@ class CooperPair(object):
             checkpoint_id = self.get_checkpoint_by_name(checkpoint_name)['checkpoint']['id']
         expectations_config = self.get_checkpoint_as_expectations_config(
             checkpoint_id=checkpoint_id, checkpoint_name=checkpoint_name)
+        expectation_ids = expectations_config.pop('expectation_ids', [])
+        
         ge_results = pandas_df.validate(
             expectations_config=expectations_config,
             result_format="SUMMARY",
             catch_exceptions=True)
         results = ge_results['results']
         
-        for idx, expectation_id in enumerate(expectations_config['expectation_ids']):
+        for idx, expectation_id in enumerate(expectation_ids):
             results[idx]['expectation_id'] = expectation_id
         
         munged_results = self.munge_ge_evaluation_results(ge_results=results)
