@@ -200,7 +200,7 @@ class CooperPair(object):
         return [
             {
                 'success': result['success'],
-            
+                'expectationId': result['expectation_id'],
                 'expectationType': result['expectation_config']['expectation_type'],
                 'expectationKwargs': json.dumps(result['expectation_config']['kwargs']),
             
@@ -447,11 +447,17 @@ class CooperPair(object):
             checkpoint_id = self.get_checkpoint_by_name(checkpoint_name)['checkpoint']['id']
         expectations_config = self.get_checkpoint_as_expectations_config(
             checkpoint_id=checkpoint_id, checkpoint_name=checkpoint_name)
+        expectation_ids = expectations_config.pop('expectation_ids', [])
+        
         ge_results = pandas_df.validate(
             expectations_config=expectations_config,
             result_format="SUMMARY",
             catch_exceptions=True)
         results = ge_results['results']
+        
+        for idx, expectation_id in enumerate(expectation_ids):
+            results[idx]['expectation_id'] = expectation_id
+        
         munged_results = self.munge_ge_evaluation_results(ge_results=results)
         new_dataset = self.add_dataset(project_id=1, label=dataset_label)
         new_dataset_id = new_dataset['addDataset']['dataset']['id']
@@ -1560,8 +1566,10 @@ class CooperPair(object):
                 for expectation
                 in checkpoint['checkpoint']['expectationSuite']['expectations']['edges']
                 if expectation['node']['isActivated']]
+        expectation_ids = [expectation['id'] for expectation in expectations]
         expectations_config = {
             'meta': {'great_expectations.__version__': '0.4.4'},
+            'expectation_ids': expectation_ids,
             'dataset_name': None,
             'expectations': [
                 {'expectation_type': expectation['expectationType'],
