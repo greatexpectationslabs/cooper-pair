@@ -1631,6 +1631,7 @@ class CooperPair(object):
     def add_checkpoint(
             self,
             name,
+            table_name=None,
             is_activated=True,
             slack_webhook=None,
             expectation_suite_id=None,
@@ -1638,6 +1639,7 @@ class CooperPair(object):
         """
         Add a checkpoint.
         :param name: Name of checkpoint
+        :param table_name: Name of associated table
         :param is_activated: boolean
         :param slack_webhook: optional slack webhook address to create
             condigured_notification on checkpoint creation
@@ -1687,6 +1689,7 @@ class CooperPair(object):
             variables={
                 'checkpoint': {
                     'name': name,
+                    'tableName': table_name,
                     'slug': generate_slug(name),
                     'isActivated': is_activated,
                     'expectationSuiteId': expectation_suite_id,
