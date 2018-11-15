@@ -1758,10 +1758,11 @@ class CooperPair(object):
             }
             """, variables={'id': checkpoint_id})
     
-    def add_sensor(self, name, data_source_id=None, excluded_paths=None, sensor_config=None):
+    def add_sensor(self, name, type, data_source_id=None, excluded_paths=None, sensor_config=None):
         """
         Adds a new sensor.
         :param name: (str) name to identify sensor
+        :param type: (str) type of sensor
         :param data_source_id: (int or str relay id) id of associated data source
         :param excluded_paths: (array of dicts) paths to exclude from evaluation on
         sensor execution, of form {'path': ..., 'reason': ...}
@@ -1771,7 +1772,8 @@ class CooperPair(object):
         """
         variables = {
             'sensor': {
-                'name': name
+                'name': name,
+                'type': type
             }
         }
         
