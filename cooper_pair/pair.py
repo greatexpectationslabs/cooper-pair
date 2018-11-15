@@ -1654,6 +1654,7 @@ class CooperPair(object):
                     checkpoint {
                         id
                         name
+                        tableName
                         slug
                         isActivated
                         sensor {
@@ -1793,6 +1794,7 @@ class CooperPair(object):
                     sensor {
                         id
                         name
+                        type
                         dataSourceId
                         createdBy {
                             id
