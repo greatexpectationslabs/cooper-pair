@@ -2053,3 +2053,17 @@ class CooperPair(object):
                 }
             }
         }""")
+    
+    def list_priority_levels(self):
+        return self.query("""{
+            allPriorityLevels {
+                edges {
+                    node {
+                        id
+                        level
+                        iconClassName
+                        colorClassName
+                    }
+                }
+            }
+        }""")
