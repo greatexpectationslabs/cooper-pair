@@ -284,12 +284,6 @@ class CooperPair(object):
         """
         if not checkpoint_id and not checkpoint_name:
             raise ValueError('must provide checkpoint_id or checkpoint_name')
-        
-        if results is not None:
-            if all([x['success'] for x in results]):
-                status = 'success'
-            else:
-                status = 'failed'
                 
         return self.query("""
             mutation addEvaluationMutation($evaluation: AddEvaluationInput!) {
@@ -489,10 +483,6 @@ class CooperPair(object):
         }
         if results is not None:
             variables['updateEvaluation']['results'] = results
-            if all([x['success'] for x in results]):
-                status = 'success'
-            else:
-                status = 'failed'
             
         if status is not None:
             variables['updateEvaluation']['status'] = status
