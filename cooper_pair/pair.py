@@ -225,7 +225,7 @@ class CooperPair(object):
             query evaluationQuery($id: ID!) {
                 evaluation(id: $id) {
                     id
-                    status
+                    statusOrdinal
                     checkpointId
                     checkpoint {
                         name
@@ -253,6 +253,7 @@ class CooperPair(object):
                                 exceptionTraceback
                                 evaluationId
                                 expectationId
+                                statusOrdinal
                             }
                         }
                     }
@@ -269,7 +270,7 @@ class CooperPair(object):
             checkpoint_name=None,
             delay_evaluation=False,
             results=None,
-            status=None
+            status_ordinal=None
     ):
         """Add a new evaluation.
 
@@ -279,6 +280,9 @@ class CooperPair(object):
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
             checkpoint_name (str) -- The name of the checkpoint to evaluate
+            delay_evaluation (bool) -- If True, evaluation of dataset will be delayed
+            results (list) -- List of ge evaluation results
+            status_ordinal (int) -- Status ordinal of evaluation
         Returns:
             A dict containing the parsed results of the mutation.
         """
@@ -327,10 +331,11 @@ class CooperPair(object):
                                 raisedException
                                 exceptionTraceback
                                 evaluationId
+                                statusOrdinal
                             }
                         }
                     }
-                    status
+                    statusOrdinal
                     updatedAt
                 }
                 }
@@ -343,7 +348,7 @@ class CooperPair(object):
                 'checkpointName': checkpoint_name,
                 'delayEvaluation': delay_evaluation,
                 'results': results,
-                'status': status
+                'statusOrdinal': status_ordinal
             }
         })
     
@@ -463,13 +468,13 @@ class CooperPair(object):
         )
         return ge_results
     
-    def update_evaluation(self, evaluation_id, status=None, results=None):
+    def update_evaluation(self, evaluation_id, status_ordinal=None, results=None):
         """Update an evaluation.
 
         Args:
             evaluation_id (int or str Relay id) -- The id of the evaluation
                 to update
-            status (str) -- The status of the evaluation, if any
+            status_ordinal (int) -- The status ordinal of the evaluation, if any
                 (default: None)
             results (list of dicts) -- The results, if any (default: None)
 
@@ -484,8 +489,8 @@ class CooperPair(object):
         if results is not None:
             variables['updateEvaluation']['results'] = results
             
-        if status is not None:
-            variables['updateEvaluation']['status'] = status
+        if status_ordinal is not None:
+            variables['updateEvaluation']['statusOrdinal'] = status_ordinal
 
         return self.query("""
             mutation($updateEvaluation: UpdateEvaluationInput!) {
@@ -529,10 +534,11 @@ class CooperPair(object):
                                     raisedException
                                     exceptionTraceback
                                     evaluationId
+                                    statusOrdinal
                                 }
                             }
                         }
-                        status
+                        statusOrdinal
                         updatedAt
                     }
                 }
@@ -2061,6 +2067,7 @@ class CooperPair(object):
                     node {
                         id
                         level
+                        ordinal
                         iconClassName
                         colorClassName
                     }
