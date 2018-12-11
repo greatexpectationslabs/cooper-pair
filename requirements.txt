@@ -1,4 +1,3 @@
-pandas
 great_expectations
 gql==0.1.0
 requests==2.20.1
