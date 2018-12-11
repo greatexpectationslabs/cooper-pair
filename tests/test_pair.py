@@ -17,7 +17,6 @@ except ImportError:
     from StringIO import StringIO
 
 from cooper_pair.pair import CooperPair
-from cooper_pair.version import __version__
 from graphql.error.syntax_error import GraphQLSyntaxError
 
 DQM_GRAPHQL_URL = os.getenv('DQM_GRAPHQL_URL', 'http://0.0.0.0:3010/graphql')
@@ -40,9 +39,6 @@ SAMPLE_EXPECTATIONS_CONFIG = {
          ],
     'meta': {'great_expectations.__version__': '0.4.3'}}
 
-
-def test_version():
-    assert __version__
 
 # FIXME: This test runs very slowly
 def test_init():

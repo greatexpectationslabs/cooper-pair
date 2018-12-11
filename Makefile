@@ -49,14 +49,16 @@ clean: ## Clean out python cache files
 	rm -fr dist/*
 .PHONY: clean
 
-dist: test clean ## builds source and wheel package
+dist: clean ## builds source and wheel package
 	python setup.py sdist
 	python setup.py bdist_wheel
 	ls -l dist
 .PHONY: dist
 
 release: dist ## package and upload a release
-	twine upload dist/*
+# TODO using TEST pypi for now
+#	twine upload dist/*
+	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 .PHONY: release
 
 venv: ## Create a new virtualenv in the repo root

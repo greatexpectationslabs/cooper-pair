@@ -1,27 +1,31 @@
 #!/usr/bin/env python
 
-import os
 from setuptools import find_packages, setup
 
-
-def get_version():
-    basedir = os.path.dirname(__file__)
-    with open(os.path.join(basedir, 'cooper_pair/version.py')) as f:
-        __version__ = None
-        exec(f.read())
-        return __version__
-
+with open("README.md", "r") as fh:
+    long_description = fh.read()
 
 if __name__ == '__main__':
-    setup(name='cooper_pair',
-          version=get_version(),
-          author='Superconductive Health',
-          author_email='dev@superconductivehealth.com',
-          maintainer='Superconductive Health',
-          maintainer_email='dev@superconductivehealth.com',
-          install_requires=[
-              'gql',
-              'requests',
-              'great_expectations'
-          ],
-          packages=find_packages())
+    setup(
+        name='cooper_pair',
+        version='0.0.2alpha3',
+        author='Superconductive Health',
+        author_email='dev@superconductivehealth.com',
+        maintainer='Superconductive Health',
+        maintainer_email='dev@superconductivehealth.com',
+        url='https://github.com/superconductive/cooper-pair',
+        packages=find_packages(),
+        classifiers=[
+            'Programming Language :: Python :: 3',
+            'License :: OSI Approved :: Apache Software License',
+            'Operating System :: OS Independent',
+        ],
+        description='A small library that provides programmatic access to Superconductive\'s GraphQL API.',
+        long_description=long_description,
+        long_description_content_type="text/markdown",
+        install_requires=[
+            'gql',
+            'requests',
+            'great_expectations'
+        ],
+    )
