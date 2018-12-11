@@ -1,1 +1,1 @@
-from .pair import CooperPair
+from cooper_pair.pair import CooperPair

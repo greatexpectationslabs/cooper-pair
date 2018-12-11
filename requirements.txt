@@ -1,4 +1,4 @@
-pytest-cov==2.5.1
-pytest==3.2.5
+pandas
+great_expectations
 gql==0.1.0
 requests==2.20.1
