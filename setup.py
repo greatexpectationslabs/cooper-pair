@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 if __name__ == '__main__':
     setup(
         name='cooper_pair',
-        version='0.0.2alpha3',
+        version='0.0.4',
         author='Superconductive Health',
         author_email='dev@superconductivehealth.com',
         maintainer='Superconductive Health',
