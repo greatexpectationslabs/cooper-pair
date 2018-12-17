@@ -16,8 +16,7 @@ try:
 except ImportError:
     from StringIO import StringIO
 
-from cooper_pair import CooperPair
-from cooper_pair.version import __version__
+from cooper_pair.pair import CooperPair
 from graphql.error.syntax_error import GraphQLSyntaxError
 
 DQM_GRAPHQL_URL = os.getenv('DQM_GRAPHQL_URL', 'http://0.0.0.0:3010/graphql')
@@ -25,7 +24,10 @@ DQM_GRAPHQL_URL = os.getenv('DQM_GRAPHQL_URL', 'http://0.0.0.0:3010/graphql')
 pair = CooperPair(
     graphql_endpoint=DQM_GRAPHQL_URL,
     email='machine@superconductivehealth.com',
-    password='foobar')
+    password='foobar',
+    timeout=1,
+    max_retries=1,
+)
 
 SAMPLE_EXPECTATIONS_CONFIG = {
     'dataset_name': None,
@@ -37,9 +39,6 @@ SAMPLE_EXPECTATIONS_CONFIG = {
          ],
     'meta': {'great_expectations.__version__': '0.4.3'}}
 
-
-def test_version():
-    assert __version__
 
 # FIXME: This test runs very slowly
 def test_init():
@@ -54,7 +53,7 @@ def test_init_client_without_credentials():
 #FIXME: This test runs very slowly
 def test_login_success():
     with pytest.warns(UserWarning):
-        pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
+        pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL, timeout=1, max_retries=1)
     assert pair.login(
         email='machine@superconductivehealth.com',
         password='foobar')
@@ -62,7 +61,7 @@ def test_login_success():
 #FIXME: This test runs very slowly
 def test_login_failure():
     with pytest.warns(UserWarning):
-        pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
+        pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL, timeout=1, max_retries=1)
     with pytest.warns(UserWarning):
         assert not pair.login(
             email='sdfjkhkdfsh',
@@ -77,7 +76,7 @@ def test_login_failure():
 #FIXME: This test runs very slowly
 def test_unauthenticated_query():
     with pytest.warns(UserWarning):
-        pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL)
+        pair = CooperPair(graphql_endpoint=DQM_GRAPHQL_URL, timeout=1, max_retries=1)
     with pytest.warns(UserWarning):
         pair.add_evaluation(dataset_id=1, checkpoint_id=1)
 
