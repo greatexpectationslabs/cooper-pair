@@ -56,8 +56,10 @@ dist: clean ## builds source and wheel package
 .PHONY: dist
 
 release: dist ## package and upload a release
-# TODO using TEST pypi for now
-#	twine upload dist/*
+	twine upload dist/*
+.PHONY: release
+
+test-pypi-release: dist ## package and upload a release to test.pypi.org
 	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 .PHONY: release
 
