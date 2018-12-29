@@ -1809,7 +1809,14 @@ class CooperPair(object):
             variables=variables
         )
         
-    def update_sensor(self, sensor_id, name=None, data_source_id=None, excluded_paths=None, sensor_config=None):
+    def update_sensor(self,
+                      sensor_id,
+                      name=None,
+                      data_source_id=None,
+                      excluded_paths=None,
+                      sensor_config=None,
+                      file_path_to_table_mapper_test_results=None
+                      ):
         """
         Updates an existing sensor.
         :param sensor_id: (int or str relay id) id of sensor to update
@@ -1819,6 +1826,13 @@ class CooperPair(object):
         sensor execution, of form {'path': ..., 'reason': ...}
         :param sensor_config: (dict) configuration dict with info for specifying which
         files are evaluated and optionally, an s3 bucket to save file after evaluation,
+        :param file_path_to_table_mapper_test_results: (dict) dict containing results of file_path_to_table_mapper test,
+        of form:
+        {
+            'file_path_to_table_mapper_src': file_path_to_table_mapper_src,
+            'table_names': table_names,
+            'unmapped_paths': unmapped_paths
+        }
         :return: (dict) a dict representation of updated sensor
         """
         variables = {
@@ -1835,6 +1849,8 @@ class CooperPair(object):
             variables['sensor']['excludedPaths'] = json.dumps(excluded_paths)
         if sensor_config:
             variables['sensor']['sensorConfig'] = json.dumps(sensor_config)
+        if file_path_to_table_mapper_test_results:
+            variables['sensor']['filePathToTableMapperTestResults'] = json.dumps(file_path_to_table_mapper_test_results)
             
         return self.query("""
             mutation updateSensorMutation($sensor: UpdateSensorInput!) {
@@ -1854,18 +1870,11 @@ class CooperPair(object):
                         }
                         excludedPaths
                         sensorConfig
+                        filePathToTableMapperTestResults
                     }
                 }
             }""",
-            variables={
-                'sensor': {
-                    'id': sensor_id,
-                    'name': name,
-                    'dataSourceId': data_source_id,
-                    'excludedPaths': excluded_paths,
-                    'sensorConfig': sensor_config
-                }
-            }
+            variables=variables
         )
 
     def add_excluded_path_to_sensor(self, sensor_id, new_excluded_path_dict):
