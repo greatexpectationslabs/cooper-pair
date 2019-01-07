@@ -2074,3 +2074,30 @@ class CooperPair(object):
                 }
             }
         }""")
+
+    def get_assets(self, workflow_run_id, operation_input_asset_keys, include_drafts=False):
+        variables = {
+            'workflow_run_id': workflow_run_id,
+            'asset_keys': operation_input_asset_keys,
+            'include_drafts': include_drafts
+        }
+        return self.query("""
+            query assetsQuery($workflowRunId: ID!, $assetKeys: List!) {
+                assets(workflowRunId: $workflowRunId, assetKeys: $assetKeys) {
+                    id
+                    key
+                    isDraft
+                    data
+                    workflowRunId
+                    operationRunId
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    deleted
+                }
+            }
+            """,
+                          variables=variables)
