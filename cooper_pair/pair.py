@@ -2082,7 +2082,7 @@ class CooperPair(object):
             'include_drafts': include_drafts
         }
         return self.query("""
-            query assetsQuery($workflowRunId: ID!, $assetKeys: Array!) {
+            query assetsQuery($workflowRunId: ID!, $assetKeys: [String]!) {
                 assets(workflowRunId: $workflowRunId, assetKeys: $assetKeys) {
                     id
                     key
