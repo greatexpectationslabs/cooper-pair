@@ -2113,55 +2113,44 @@ class CooperPair(object):
                   variables=variables
         )
 
-    # def add_operation_run(self, operation_name, workflow_run_id, status, start_date_time=None, end_date_time=None, message=None):
-    #     """Add a new operation_run
-    #         Args:
-    #             operation_name (string) -- name of operation
-    #             workflow_run_id (int or string Relay id) -- id of associated workflow_run
-    #             status (string) -- status of operation_run
-    #             start_date_time (datetime) -- start datetime of operation
-    #             end_date_time (datetime) -- end datetime of operation
-    #             message (string) -- details about operation
-    #
-    #         Returns:
-    #             A dict representation of the added operation_run
-    #     """
-    #     variables = {
-    #         'operationRun': {
-    #             'operationName': operation_name,
-    #             'workflowRunId': workflow_run_id,
-    #             'status': status,
-    #             'startDateTime': start_date_time,
-    #             'endDateTime': end_date_time,
-    #             'message': message
-    #         }
-    #     }
-    #
-    #     return self.query("""
-    #         mutation addOperationRunMutation($operationRun: AddOperationRunInput!) {
-    #             addOperationRun(input: $operationRun) {
-    #                 operationRun {
-    #                     id
-    #                     operationName
-    #                     workflowRunId
-    #                     startDateTime
-    #                     endDateTime
-    #                     status
-    #                     message
-    #                     createdBy {
-    #                         id
-    #                         firstName
-    #                         lastName
-    #                         email
-    #                     }
-    #                     createdAt
-    #                     updatedAt
-    #                 }
-    #             }
-    #         }
-    #     """,
-    #         variables=variables
-    #     )
+    def execute_operation(self, operation_name, workflow_run_id):
+        """Execute an operation
+            Args:
+                operation_name (string) -- name of operation
+                workflow_run_id (int or string Relay id) -- id of associated workflow_run
+
+            Returns:
+                A dict representation of the added operation_run
+        """
+        variables = {
+            'operationRun': {
+                'operationName': operation_name,
+                'workflowRunId': workflow_run_id
+            }
+        }
+
+        return self.query("""
+            mutation executeOperationMutation($operationRun: ExecuteOperationInput!) {
+                executeOperation(input: $operationRun) {
+                    operationRun {
+                        id
+                        operationName
+                        workflowRunId
+                        status
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }
+                        createdAt
+                        updatedAt
+                    }
+                }
+            }
+        """,
+            variables=variables
+        )
         
     def get_workflow_run(self, workflow_run_id):
         """Retrieve a workflow_run given its id
