@@ -2074,3 +2074,264 @@ class CooperPair(object):
                 }
             }
         }""")
+
+    def get_operation_run(self, operation_run_id):
+        """Retrieve a operation_run given its id
+            Args:
+                operation_run_id (int or str Relay id) -- a operation_run id
+
+            Returns:
+                A dict representation of the retrieved operation_run
+        """
+        variables = {
+            'id': operation_run_id
+        }
+
+        return self.query("""
+            query operationRunQuery($id: ID!) {
+                operationRun(id: $id) {
+                    id
+                    operationName
+                    workflowRunId
+                    startDateTime
+                    endDateTime
+                    status
+                    message
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    deleted
+                    deletedAt
+                    updatedAt
+                    createdAt
+                }
+            }
+            """,
+                  variables=variables
+        )
+
+    def execute_operation(self, operation_name, workflow_run_id):
+        """Execute an operation
+            Args:
+                operation_name (string) -- name of operation
+                workflow_run_id (int or string Relay id) -- id of associated workflow_run
+
+            Returns:
+                A dict representation of the added operation_run
+        """
+        variables = {
+            'operationRun': {
+                'operationName': operation_name,
+                'workflowRunId': workflow_run_id
+            }
+        }
+
+        return self.query("""
+            mutation executeOperationMutation($operationRun: ExecuteOperationInput!) {
+                executeOperation(input: $operationRun) {
+                    operationRun {
+                        id
+                        operationName
+                        workflowRunId
+                        status
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }
+                        createdAt
+                        updatedAt
+                    }
+                }
+            }
+        """,
+            variables=variables
+        )
+        
+    def get_workflow_run(self, workflow_run_id):
+        """Retrieve a workflow_run given its id
+            Args:
+                workflow_run_id (int or str Relay id) -- a workflow_run id
+
+            Returns:
+                A dict representation of the retrieved workflow_run
+        """
+        variables = {
+            'id': workflow_run_id
+        }
+
+        return self.query("""
+            query workflowRunQuery($id: ID!) {
+                workflowRun(id: $id) {
+                    id
+                    name
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    deleted
+                    deletedAt
+                    updatedAt
+                    createdAt
+                }
+            }
+            """,
+                  variables=variables
+        )
+
+    def add_workflow_run(self, name):
+        """Add a new workflow_run
+            Args:
+                name (string) -- name of workflow_run
+
+            Returns:
+                A dict representation of the added workflow_run
+        """
+        variables = {
+            'workflowRun': {
+                'name': name,
+            }
+        }
+
+        return self.query("""
+            mutation addWorkflowRunMutation($workflowRun: AddWorkflowRunInput!) {
+                addWorkflowRun(input: $workflowRun) {
+                    workflowRun {
+                        id
+                        name
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }
+                        createdAt
+                        updatedAt
+                    }
+                }
+            }
+        """,
+            variables=variables
+        )
+
+    def get_asset(self, asset_id):
+        """Retrieve an asset given its id
+            Args:
+                asset_id (int or str Relay id) -- an asset id
+
+            Returns:
+                A dict representation of the retrieved asset
+        """
+        variables = {
+            'id': asset_id
+        }
+
+        return self.query("""
+            query assetQuery($id: ID!) {
+                asset(id: $id) {
+                    id
+                    key
+                    data
+                    isDraft
+                    workflowRunId
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    deleted
+                    deletedAt
+                    updatedAt
+                    createdAt
+                }
+            }
+            """,
+                  variables=variables
+        )
+
+    def add_asset(self, key, data, workflow_run_id, is_draft):
+        """Add a new asset
+            Args:
+                workflow_run_id (int or str Relay id) -- a WorkflowRun id
+                key (string) -- key of asset to add
+                data (string) -- serialization of asset's data
+                is_draft (boolean) -- boolean indicating whether asset is a draft
+
+            Returns:
+                A dict representation of the added asset
+        """
+        variables = {
+            'asset': {
+                'key': key,
+                'isDraft': is_draft,
+                'data': data,
+                'workflowRunId': workflow_run_id
+            }
+        }
+
+        return self.query("""
+            mutation addAssetMutation($asset: AddAssetInput!) {
+                addAsset(input: $asset) {
+                    asset {
+                        id
+                        key
+                        data
+                        isDraft
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }
+                        createdAt
+                        updatedAt
+                        workflowRunId
+                    }
+                }
+            }
+        """,
+            variables=variables
+        )
+
+    def get_assets(self, workflow_run_id, asset_keys, include_drafts=False):
+        """Retrieve a list of assets given a workflow_run_id and list of asset_keys
+            Args:
+                workflow_run_id (int or str Relay id) -- a WorkflowRun id
+                asset_keys (list of strings) -- a list of asset keys to fetch
+                include_drafts (boolean) -- boolean indicating whether to include drafts in results
+
+            Returns:
+                A list of asset dicts representing asset objects
+        """
+        variables = {
+            'workflowRunId': workflow_run_id,
+            'assetKeys': asset_keys,
+            'includeDrafts': include_drafts
+        }
+        return self.query("""
+            query assetsQuery($workflowRunId: ID!, $assetKeys: [String]!, $includeDrafts: Boolean!) {
+                assets(workflowRunId: $workflowRunId, assetKeys: $assetKeys, includeDrafts: $includeDrafts) {
+                    id
+                    key
+                    isDraft
+                    data
+                    workflowRunId
+                    operationRunId
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    deleted
+                }
+            }
+            """,
+                          variables=variables)
