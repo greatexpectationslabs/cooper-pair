@@ -2151,6 +2151,73 @@ class CooperPair(object):
         """,
             variables=variables
         )
+
+    def update_operation_run(
+            self,
+            operation_run_id,
+            start_date_time=None,
+            end_date_time=None,
+            status=None,
+            message=None,
+            deleted=None
+    ):
+        """Update an existing operation_run.
+
+        Args:
+            operation_run_id (int or str Relay id) -- The id of the operation_run
+                to update.
+
+        Kwargs:
+            start_date_time (datetime) -- the start datetime of operation execution
+            end_date_time (datetime) -- the end datetime of operation execution
+            status (string) -- the status of operation run
+            message (string) -- details about operation run
+            deleted (boolean) -- soft delete flag
+
+        Returns:
+            A dict representing the parsed results of the mutation.
+        """
+
+    
+        variables = {
+            'operationRun': {
+                'id': operation_run_id
+            }
+        }
+    
+        if start_date_time is not None:
+            variables['operationRun']['startDateTime'] = start_date_time.isoformat()
+        if end_date_time is not None:
+            variables['operationRun']['endDateTime'] = end_date_time.isoformat()
+        if status is not None:
+            allowed_statuses = ['init', 'running', 'completed_success', 'completed_failure']
+            assert status in allowed_statuses, f'Status must be one of: {", ".join(allowed_statuses)}.'
+            variables['operationRun']['status'] = status
+        if message is not None:
+            variables['operationRun']['message'] = message
+        if deleted is not None:
+            variables['operationRun']['deleted'] = deleted
+            
+        result = self.query("""
+             mutation updateOperationRunMutation($operationRun: UpdateOperationRunInput!) {
+                 updateOperationRun(input: $operationRun) {
+                     operationRun {
+                         id
+                         operationName
+                         workflowRunId
+                         startDateTime
+                         endDateTime
+                         status
+                         message
+                         updatedAt
+                         deletedAt
+                     }
+                 }
+             }
+             """,
+                            variables=variables
+                            )
+        return result
         
     def get_workflow_run(self, workflow_run_id):
         """Retrieve a workflow_run given its id
