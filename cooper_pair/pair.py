@@ -2313,6 +2313,136 @@ class CooperPair(object):
             """,
                   variables=variables
         )
+        
+    def get_workflow_run_status(self, workflow_run_id):
+        """Retrieve status of workflow_run given workflow_run id
+            Args:
+                workflow_run_id (int or str Relay id) -- a workflow_run id
+
+            Returns:
+                A dict representation of the retrieved workflow_run status
+        """
+        variables = {
+            'id': workflow_run_id
+        }
+
+        return self.query("""
+            query workflowRunStatusQuery($id: ID!) {
+                workflowRunStatus(id: $id) {
+                    workflowRun {
+                        id
+                        name
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }
+                        deleted
+                        deletedAt
+                        updatedAt
+                        createdAt
+                    }
+                    operationRuns {
+                        id
+                        operationName
+                        workflowRunId
+                        startDateTime
+                        endDateTime
+                        createdById
+                        status
+                        message
+                    }
+                    assets {
+                        id
+                        key
+                        isDraft
+                        data
+                        workflowRunId
+                        operationRunId
+                        createdById
+                    }
+                    nextOperations
+                    blockingAssets
+                }
+            }
+            """,
+                  variables=variables
+        )
+        
+    def get_workflow_runs_by_name(self, workflow_name):
+        """Retrieve workflow_runs with a given workflow name
+            Args:
+                workflow_name (str) -- a workflow name
+
+            Returns:
+                A list of dict representations of the retrieved workflow_runs
+        """
+        variables = {
+            'name': workflow_name
+        }
+
+        return self.query("""
+            query workflowRunsByNameQuery($name: String!) {
+                workflowRunsByName(name: $name) {
+                    id
+                    name
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    deleted
+                    deletedAt
+                    updatedAt
+                    createdAt
+                }
+            }
+            """,
+                  variables=variables
+        )
+        
+    def get_next_workflow_run_operations(self, workflow_run_id):
+        """Retrieve the next possible operations for a workflow_run with given id
+            Args:
+                workflow_run_id (int or str) -- id or string Relay id of workflow_run
+
+            Returns:
+                A list of operation names
+        """
+        variables = {
+            'id': workflow_run_id
+        }
+
+        return self.query("""
+            query newWorkflowRunOperationsQuery($id: ID!) {
+                nextWorkflowRunOperations(id: $id)
+            }
+            """,
+                  variables=variables
+        )
+        
+    def get_workflow_run_blocking_assets(self, workflow_run_id):
+        """Retrieve a workflow run's blocking assets. Blocking assets are assets that their absence
+        is the only thing blocking an operation (not all of whose outputs are registered as assets) from running
+            Args:
+                workflow_run_id (int or str) -- id or string Relay id of workflow_run
+
+            Returns:
+                A list of asset keys
+        """
+        variables = {
+            'id': workflow_run_id
+        }
+
+        return self.query("""
+            query workflowRunBlockingAssetsQuery($id: ID!) {
+                workflowRunBlockingAssets(id: $id)
+            }
+            """,
+                  variables=variables
+        )
 
     def add_workflow_run(self, name):
         """Add a new workflow_run
