@@ -2416,7 +2416,7 @@ class CooperPair(object):
         }
 
         return self.query("""
-            query newWorkflowRunOperationsQuery($id: ID!) {
+            query nextWorkflowRunOperationsQuery($id: ID!) {
                 nextWorkflowRunOperations(id: $id)
             }
             """,
@@ -2499,6 +2499,7 @@ class CooperPair(object):
                     data
                     isDraft
                     workflowRunId
+                    operationRunId
                     createdBy {
                         id
                         firstName
@@ -2515,7 +2516,7 @@ class CooperPair(object):
                   variables=variables
         )
 
-    def add_asset(self, key, data, workflow_run_id, is_draft):
+    def add_asset(self, key, data, workflow_run_id, is_draft, operation_run_id=None):
         """Add a new asset
             Args:
                 workflow_run_id (int or str Relay id) -- a WorkflowRun id
@@ -2531,9 +2532,13 @@ class CooperPair(object):
                 'key': key,
                 'isDraft': is_draft,
                 'data': data,
-                'workflowRunId': workflow_run_id
+                'workflowRunId': workflow_run_id,
+                'operationRunId': operation_run_id
             }
         }
+
+        if operation_run_id is not None:
+            variables['asset']['operationRunId'] = operation_run_id
 
         return self.query("""
             mutation addAssetMutation($asset: AddAssetInput!) {
@@ -2552,6 +2557,7 @@ class CooperPair(object):
                         createdAt
                         updatedAt
                         workflowRunId
+                        operationRunId
                     }
                 }
             }
