@@ -2444,7 +2444,7 @@ class CooperPair(object):
                   variables=variables
         )
 
-    def add_workflow_run(self, name):
+    def add_workflow_run(self, name, workflow_environment_id=None):
         """Add a new workflow_run
             Args:
                 name (string) -- name of workflow_run
@@ -2455,6 +2455,7 @@ class CooperPair(object):
         variables = {
             'workflowRun': {
                 'name': name,
+                'workflow_environment_id': workflow_environment_id
             }
         }
 
@@ -2464,6 +2465,9 @@ class CooperPair(object):
                     workflowRun {
                         id
                         name
+                        workflowEnvironment {
+                            name
+                        }
                         createdBy {
                             id
                             firstName
