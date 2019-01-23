@@ -2293,15 +2293,15 @@ class CooperPair(object):
                 A dict representation of the added workflow_run
         """
         variables = {
-            'workflowRun': {
+            'workflowRunParams': {
                 'name': name,
                 'workflow_environment_id': workflow_environment_id
             }
         }
 
         return self.query("""
-            mutation addWorkflowRunMutation($workflowRun: AddWorkflowRunInput!) {
-                addWorkflowRun(input: $workflowRun) {
+            mutation addWorkflowRunMutation($workflowRunParams: AddWorkflowRunInput!) {
+                addWorkflowRun(input: $workflowRunParams) {
                     workflowRun {
                         id
                         name
@@ -2556,7 +2556,7 @@ class CooperPair(object):
                         id
                         name
                         workflowName
-                        data_dict
+                        dataDict
                         createdBy {
                             id
                             firstName
@@ -2600,7 +2600,7 @@ class CooperPair(object):
                         id
                         name
                         workflowName
-                        data_dict
+                        dataDict
                         createdBy {
                             id
                             firstName
@@ -2632,7 +2632,7 @@ class CooperPair(object):
                             id
                             name
                             workflowName
-                            data_dict
+                            dataDict
                             createdBy {
                                 id
                                 firstName
@@ -2668,7 +2668,7 @@ class CooperPair(object):
                     id
                     name
                     workflowName
-                    data_dict
+                    dataDict
                     createdBy {
                         id
                         firstName
@@ -2706,7 +2706,7 @@ class CooperPair(object):
                     id
                     name
                     workflowName
-                    data_dict
+                    dataDict
                     createdBy {
                         id
                         firstName
@@ -2744,7 +2744,7 @@ class CooperPair(object):
                             id
                             name
                             workflowName
-                            data_dict
+                            dataDict
                             createdBy {
                                 id
                                 firstName
@@ -2784,7 +2784,7 @@ class CooperPair(object):
                             id
                             name
                             workflowName
-                            data_dict
+                            dataDict
                             createdBy {
                                 id
                                 firstName
