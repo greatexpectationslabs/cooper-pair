@@ -2650,8 +2650,8 @@ class CooperPair(object):
         }
 
         return self.query("""
-            mutation deleteWorkflowEnvironmentMutation($workflowEnvironmentParams: UpdateWorkflowEnvironmentInput!) {
-                deleteWorkflowEnvironment(input: $workflowEnvironmentParams) {
+            mutation updateWorkflowEnvironmentMutation($workflowEnvironmentParams: UpdateWorkflowEnvironmentInput!) {
+                updateWorkflowEnvironment(input: $workflowEnvironmentParams) {
                     workflowEnvironment {
                         id
                         name
