@@ -2324,21 +2324,22 @@ class CooperPair(object):
                           variables=variables
         )
 
-    def update_workflow_run(self, deleted, workflow_environment_id):
+    def update_workflow_run(self, workflow_environment_id, deleted=None):
         """Update existing workflow_run
             Args:
-                deleted (Boolean) -- whether or not this workflow_run should be marked as deleted
                 workflow_environment_id (int or str Relay id) -- a workflow_environment id
+                deleted (Boolean) -- whether or not this workflow_run should be marked as deleted
 
             Returns:
                 A dict representation of the updated workflow_run
         """
         variables = {
             'workflowRunParams': {
-                'deleted': deleted,
-                'workflow_environment_id': workflow_environment_id
+                'id': workflow_environment_id
             }
         }
+        if deleted is not None:
+            variables['workflowRunParams']['deleted'] = deleted
 
         return self.query("""
              mutation updateWorkflowRunMutation($workflowRunParams: UpdateWorkflowRunInput!) {
@@ -2582,13 +2583,13 @@ class CooperPair(object):
               variables=variables
         )
 
-    def update_workflow_environment(self, data_dict, deleted):
+    def update_workflow_environment(self, workflow_environment_id, data_dict):
         """Update an existing workflow_environment
             Args:
+                workflow_environment_id (int or str Relay id) -- The id of the workflow environment to update.
                 data_dict (JSON dict) -- environment configuration as JSON.
                 Note that these environment attributes are not yet validated
                 by client or server code, so failures will occur at evaluation time.
-                deleted (Boolean) -- whether or not this workflow_run should be marked as deleted
 
             Returns:
                 A dict representation of the updated workflow_environment
@@ -2601,10 +2602,11 @@ class CooperPair(object):
 
         variables = {
             'workflowEnvironmentParams': {
-                'dataDict': data_dict,
-                'deleted': deleted
+                'id': workflow_environment_id
             }
         }
+        if data_dict is not None:
+            variables['workflowEnvironmentParams']['dataDict'] = data_dict
 
         return self.query("""
             mutation updateWorkflowEnvironmentMutation($workflowEnvironmentParams: UpdateWorkflowEnvironmentInput!) {
@@ -2631,6 +2633,47 @@ class CooperPair(object):
         """,
                           variables=variables
         )
+
+    def delete_workflow_environment(self, workflow_environment_id):
+        """Delete an existing workflow_environment
+            Args:
+                workflow_environment_id (int or str Relay id) -- The id of the workflow environment to delete.
+
+            Returns:
+                A dict representation of the deleted workflow_environment
+        """
+        variables = {
+            'workflowEnvironmentParams': {
+                'id': workflow_environment_id
+                'deleted': True
+            }
+        }
+
+        return self.query("""
+            mutation deleteWorkflowEnvironmentMutation($workflowEnvironmentParams: UpdateWorkflowEnvironmentInput!) {
+                deleteWorkflowEnvironment(input: $workflowEnvironmentParams) {
+                    workflowEnvironment {
+                        id
+                        name
+                        workflowName
+                        dataDict
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }   
+                        organizationId
+                        deleted
+                        deletedAt
+                        createdAt
+                        updatedAt
+                    }   
+                }   
+            }
+        """,
+                          variables=variables
+                          )
 
     def get_all_workflow_environments(self):
         """
