@@ -2280,7 +2280,86 @@ class CooperPair(object):
                             variables=variables
                             )
         return result
-        
+
+    def add_workflow_run(self, name, workflow_environment_id=None):
+        """Add a new workflow_run
+            Args:
+                name (string) -- name of workflow_run
+
+            Returns:
+                A dict representation of the added workflow_run
+        """
+        variables = {
+            'workflowRun': {
+                'name': name,
+                'workflow_environment_id': workflow_environment_id
+            }
+        }
+
+        return self.query("""
+            mutation addWorkflowRunMutation($workflowRun: AddWorkflowRunInput!) {
+                addWorkflowRun(input: $workflowRun) {
+                    workflowRun {
+                        id
+                        name
+                        workflowEnvironment {
+                            name
+                        }
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }
+                        createdAt
+                        updatedAt
+                    }
+                }
+            }
+        """,
+                          variables=variables
+                          )
+
+    def update_workflow_run(self, deleted, workflow_environment_id):
+        """Update existing workflow_run
+            Args:
+                deleted (Boolean) -- whether or not this workflow_run should be marked as deleted
+                workflow_environment_id (int or str Relay id) -- a workflow_environment id
+
+            Returns:
+                A dict representation of the updated workflow_run
+        """
+        variables = {
+            'workflowRun': {
+                'deleted': deleted,
+                'workflow_environment_id': workflow_environment_id
+            }
+        }
+
+        return self.query("""
+             mutation updateWorkflowRunMutation($workflowRunParams: UpdateWorkflowRunInput!) {
+                 updateWorkflowRun(input: $workflowRunParams) {
+                     workflowRun {
+                         id
+                         name
+                         workflowEnvironment {
+                             name
+                         }
+                         createdBy {
+                             id
+                             firstName
+                             lastName
+                             email
+                         }
+                         createdAt
+                         updatedAt
+                     }
+                 }
+             }
+         """,
+                  variables=variables
+          )
+
     def get_workflow_run(self, workflow_run_id):
         """Retrieve a workflow_run given its id
             Args:
@@ -2444,82 +2523,6 @@ class CooperPair(object):
                   variables=variables
         )
 
-    def add_workflow_run(self, name, workflow_environment_id=None):
-        """Add a new workflow_run
-            Args:
-                name (string) -- name of workflow_run
-
-            Returns:
-                A dict representation of the added workflow_run
-        """
-        variables = {
-            'workflowRun': {
-                'name': name,
-                'workflow_environment_id': workflow_environment_id
-            }
-        }
-
-        return self.query("""
-            mutation addWorkflowRunMutation($workflowRun: AddWorkflowRunInput!) {
-                addWorkflowRun(input: $workflowRun) {
-                    workflowRun {
-                        id
-                        name
-                        workflowEnvironment {
-                            name
-                        }
-                        createdBy {
-                            id
-                            firstName
-                            lastName
-                            email
-                        }
-                        createdAt
-                        updatedAt
-                    }
-                }
-            }
-        """,
-            variables=variables
-        )
-
-    def get_asset(self, asset_id):
-        """Retrieve an asset given its id
-            Args:
-                asset_id (int or str Relay id) -- an asset id
-
-            Returns:
-                A dict representation of the retrieved asset
-        """
-        variables = {
-            'id': asset_id
-        }
-
-        return self.query("""
-            query assetQuery($id: ID!) {
-                asset(id: $id) {
-                    id
-                    key
-                    data
-                    isDraft
-                    workflowRunId
-                    operationRunId
-                    createdBy {
-                        id
-                        firstName
-                        lastName
-                        email
-                    }
-                    deleted
-                    deletedAt
-                    updatedAt
-                    createdAt
-                }
-            }
-            """,
-                  variables=variables
-        )
-
     def add_asset(self, key, data, workflow_run_id, is_draft, operation_run_id=None):
         """Add a new asset
             Args:
@@ -2630,6 +2633,43 @@ class CooperPair(object):
                             )
         return result
 
+    def get_asset(self, asset_id):
+        """Retrieve an asset given its id
+            Args:
+                asset_id (int or str Relay id) -- an asset id
+
+            Returns:
+                A dict representation of the retrieved asset
+        """
+        variables = {
+            'id': asset_id
+        }
+
+        return self.query("""
+            query assetQuery($id: ID!) {
+                asset(id: $id) {
+                    id
+                    key
+                    data
+                    isDraft
+                    workflowRunId
+                    operationRunId
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    deleted
+                    deletedAt
+                    updatedAt
+                    createdAt
+                }
+            }
+            """,
+                          variables=variables
+                          )
+
     def get_assets(self, workflow_run_id, asset_keys, include_drafts=False):
         """Retrieve a list of assets given a workflow_run_id and list of asset_keys
             Args:
@@ -2666,3 +2706,4 @@ class CooperPair(object):
             }
             """,
                           variables=variables)
+
