@@ -1619,7 +1619,7 @@ class CooperPair(object):
                             expectationSuiteId
                             sensorId
                             sensor {
-                                type
+                                sensor_type
                             }
                         }
                     }
@@ -1761,11 +1761,11 @@ class CooperPair(object):
             }
             """, variables={'id': checkpoint_id})
     
-    def add_sensor(self, name, type, data_source_id=None, excluded_paths=None, sensor_config=None):
+    def add_sensor(self, name, sensor_type, data_source_id=None, excluded_paths=None, sensor_config=None):
         """
         Adds a new sensor.
         :param name: (str) name to identify sensor
-        :param type: (str) type of sensor
+        :param sensor_type: (str) type of sensor
         :param data_source_id: (int or str relay id) id of associated data source
         :param excluded_paths: (array of dicts) paths to exclude from evaluation on
         sensor execution, of form {'path': ..., 'reason': ...}
@@ -1776,7 +1776,7 @@ class CooperPair(object):
         variables = {
             'sensor': {
                 'name': name,
-                'type': type
+                'sensor_type': sensor_type
             }
         }
         
@@ -1793,7 +1793,7 @@ class CooperPair(object):
                     sensor {
                         id
                         name
-                        type
+                        sensorType
                         dataSourceId
                         createdBy {
                             id
@@ -1903,11 +1903,11 @@ class CooperPair(object):
                 }
         )
     
-    def add_data_source(self, name, type, is_activated=True, credentials_reference=None):
+    def add_data_source(self, name, ds_type, is_activated=True, credentials_reference=None):
         """
         Adds a new data source.
         :param name: (str) name to identify data source
-        :param type: (str) type of data source (i.e. 's3', 'database')
+        :param ds_type: (str) type of data source (i.e. 's3', 'database')
         :param is_activated: (bool) active status
         :param credentials_reference: (dict) dict configuration with info on how to
         connect to data source, e.g. {
@@ -1922,7 +1922,7 @@ class CooperPair(object):
         variables = {
             'dataSource': {
                 'name': name,
-                'type': type,
+                'ds_type': ds_type,
                 'isActivated': is_activated,
             }
         }
@@ -1936,7 +1936,7 @@ class CooperPair(object):
                     dataSource {
                         id
                         name
-                        type
+                        dsType
                         isActivated
                         createdBy {
                             id
@@ -1958,7 +1958,7 @@ class CooperPair(object):
             self,
             data_source_id,
             name=None,
-            type=None,
+            ds_type=None,
             is_activated=None,
             test_status=None,
             test_error_message=None,
@@ -1968,7 +1968,7 @@ class CooperPair(object):
         Updates an existing data source
         :param data_source_id: (int or str relay id) id of data source to update
         :param name: (str) name to identify data source
-        :param type: (str) type of data source (i.e. 's3', 'database')
+        :param ds_type: (str) type of data source (i.e. 's3', 'database')
         :param is_activated: (bool) active status
         :param test_status: (str) test status of data source (None, 'success', 'failed')
         :param test_error_message: (str) optional, error message of failed test
@@ -1990,8 +1990,8 @@ class CooperPair(object):
 
         if name:
             variables['dataSource']['name'] = name
-        if type:
-            variables['dataSource']['type'] = type
+        if ds_type:
+            variables['dataSource']['ds_type'] = ds_type
         if is_activated or is_activated is False:
             variables['dataSource']['isActivated'] = is_activated
         if credentials_reference:
@@ -2007,7 +2007,7 @@ class CooperPair(object):
                     dataSource {
                         id
                         name
-                        type
+                        dsType
                         isActivated
                         testStatus
                         testErrorMessage
@@ -2288,6 +2288,7 @@ class CooperPair(object):
         """Add a new workflow_run
             Args:
                 name (string) -- name of workflow_run
+                workflow_environment_id (int or str Relay id) -- a workflow_environment id (optional)
 
             Returns:
                 A dict representation of the added workflow_run
@@ -2295,7 +2296,7 @@ class CooperPair(object):
         variables = {
             'workflowRunParams': {
                 'name': name,
-                'workflow_environment_id': workflow_environment_id
+                'workflowEnvironmentId': workflow_environment_id
             }
         }
 
@@ -2526,10 +2527,10 @@ class CooperPair(object):
                   variables=variables
         )
 
-    def add_workflow_environment(self, name, workflow_name, data_dict):
+    def add_workflow_environment(self, workflow_environment_name, workflow_name, data_dict):
         """Add a new workflow_environment
             Args:
-                name (string) -- name of workflow_environment
+                workflow_environment_name (string) -- name of workflow_environment
                 workflow_name (string) -- name of workflow
                 data_dict (JSON dict) -- environment configuration as JSON.
                 Note that these environment attributes are not yet validated
@@ -2541,11 +2542,17 @@ class CooperPair(object):
             Raises:
                 ValueError, if expectation_kwargs are not parseable as JSON
         """
+        # TODO: <Alex>Use common code (JSON schema) to validate data_dict</Alex>
+        try:
+            json.loads(data_dict)
+        except (TypeError, ValueError):
+            raise ValueError('Must provide valid JSON data_dict (got %s)', data_dict)
+
         variables = {
             'workflowEnvironmentParams': {
-                'name': name,
-                'workflow_name': workflow_name,
-                'data_dict': data_dict
+                'name': workflow_environment_name,
+                'workflowName': workflow_name,
+                'dataDict': data_dict
             }
         }
 
@@ -2575,7 +2582,7 @@ class CooperPair(object):
               variables=variables
         )
 
-    def update_workflow_environment(self, name, workflow_name, data_dict, deleted):
+    def update_workflow_environment(self, data_dict, deleted):
         """Update an existing workflow_environment
             Args:
                 data_dict (JSON dict) -- environment configuration as JSON.
@@ -2586,9 +2593,15 @@ class CooperPair(object):
             Returns:
                 A dict representation of the updated workflow_environment
         """
+        # TODO: <Alex>Use common code (JSON schema) to validate data_dict</Alex>
+        try:
+            json.loads(data_dict)
+        except (TypeError, ValueError):
+            raise ValueError('Must provide valid JSON data_dict (got %s)', data_dict)
+
         variables = {
             'workflowEnvironmentParams': {
-                'data_dict': data_dict,
+                'dataDict': data_dict,
                 'deleted': deleted
             }
         }
