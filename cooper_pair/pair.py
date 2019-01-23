@@ -2619,6 +2619,44 @@ class CooperPair(object):
                           variables=variables
         )
 
+    def get_workflow_environment(self, workflow_environment_id):
+        """Retrieve a workflow_envirnment given its id
+            Args:
+                workflow_environment_id (int or str Relay id) -- a workflow_environment id
+
+            Returns:
+                A dict representation of the retrieved workflow_environment
+        """
+        variables = {
+            'workflow_environment_id': workflow_environment_id
+        }
+
+        return self.query("""
+            query workflowEnvironmentQuery($workflow_environment_id: ID!) {
+                workflowEnvironment(id: $workflow_environment_id) {
+                    workflowEnvironment {
+                        id
+                        name
+                        workflowName
+                        data_dict
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }   
+                        organizationId
+                        deleted
+                        deletedAt
+                        createdAt
+                        updatedAt
+                    }   
+                }   
+            }
+        """,
+                          variables=variables
+        )
+
     def add_asset(self, key, data, workflow_run_id, is_draft, operation_run_id=None):
         """Add a new asset
             Args:
