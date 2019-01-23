@@ -2644,7 +2644,7 @@ class CooperPair(object):
         """
         variables = {
             'workflowEnvironmentParams': {
-                'id': workflow_environment_id
+                'id': workflow_environment_id,
                 'deleted': True
             }
         }
