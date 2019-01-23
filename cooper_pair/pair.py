@@ -543,7 +543,8 @@ class CooperPair(object):
                     }
                 }
             }
-            """, variables=variables)
+            """, variables=variables
+        )
         
     def delete_evaluation(self, evaluation_id):
         """Delete an evaluation (soft delete).
@@ -573,7 +574,8 @@ class CooperPair(object):
                     }
                 }
             }
-            """, variables=variables)
+            """, variables=variables
+        )
 
     def get_dataset(self, dataset_id):
         """Retrieve a dataset by its id.
@@ -818,7 +820,8 @@ class CooperPair(object):
                     }
                 }
             }
-            """, variables=variables)
+            """, variables=variables
+        )
     
     def munge_ge_expectations_config(self, expectations_config):
         """
@@ -2129,7 +2132,7 @@ class CooperPair(object):
             }
         """,
                           variables=variables
-                          )
+        )
 
     def get_operation_run(self, operation_run_id):
         """Retrieve a operation_run given its id
@@ -2278,7 +2281,7 @@ class CooperPair(object):
              }
              """,
                             variables=variables
-                            )
+        )
         return result
 
     def add_workflow_run(self, name, workflow_environment_id=None):
@@ -2318,7 +2321,7 @@ class CooperPair(object):
             }
         """,
                           variables=variables
-                          )
+        )
 
     def update_workflow_run(self, deleted, workflow_environment_id):
         """Update existing workflow_run
@@ -2330,7 +2333,7 @@ class CooperPair(object):
                 A dict representation of the updated workflow_run
         """
         variables = {
-            'workflowRun': {
+            'workflowRunParams': {
                 'deleted': deleted,
                 'workflow_environment_id': workflow_environment_id
             }
@@ -2358,7 +2361,7 @@ class CooperPair(object):
              }
          """,
                   variables=variables
-          )
+        )
 
     def get_workflow_run(self, workflow_run_id):
         """Retrieve a workflow_run given its id
@@ -2523,6 +2526,99 @@ class CooperPair(object):
                   variables=variables
         )
 
+    def add_workflow_environment(self, name, workflow_name, data_dict):
+        """Add a new workflow_environment
+            Args:
+                name (string) -- name of workflow_environment
+                workflow_name (string) -- name of workflow
+                data_dict (JSON dict) -- environment configuration as JSON.
+                Note that these environment attributes are not yet validated
+                by client or server code, so failures will occur at evaluation time.
+
+            Returns:
+                A dict representation of the added workflow_environment
+
+            Raises:
+                ValueError, if expectation_kwargs are not parseable as JSON
+        """
+        variables = {
+            'workflowEnvironmentParams': {
+                'name': name,
+                'workflow_name': workflow_name,
+                'data_dict': data_dict
+            }
+        }
+
+        return self.query("""
+            mutation addWorkflowEnvironmentMutation($workflowEnvironmentParams: AddWorkflowEnvironmentInput!) {
+                addWorkflowEnvironment(input: $workflowEnvironmentParams) {
+                    workflowEnvironment {
+                        id
+                        name
+                        workflowName
+                        data_dict
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }   
+                        organizationId
+                        deleted
+                        deletedAt
+                        createdAt
+                        updatedAt
+                    }   
+                }   
+            }
+        """,
+              variables=variables
+        )
+
+    def update_workflow_environment(self, name, workflow_name, data_dict, deleted):
+        """Update an existing workflow_environment
+            Args:
+                data_dict (JSON dict) -- environment configuration as JSON.
+                Note that these environment attributes are not yet validated
+                by client or server code, so failures will occur at evaluation time.
+                deleted (Boolean) -- whether or not this workflow_run should be marked as deleted
+
+            Returns:
+                A dict representation of the updated workflow_environment
+        """
+        variables = {
+            'workflowEnvironmentParams': {
+                'data_dict': data_dict,
+                'deleted': deleted
+            }
+        }
+
+        return self.query("""
+            mutation updateWorkflowEnvironmentMutation($workflowEnvironmentParams: UpdateWorkflowEnvironmentInput!) {
+                updateWorkflowEnvironment(input: $workflowEnvironmentParams) {
+                    workflowEnvironment {
+                        id
+                        name
+                        workflowName
+                        data_dict
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }   
+                        organizationId
+                        deleted
+                        deletedAt
+                        createdAt
+                        updatedAt
+                    }   
+                }   
+            }
+        """,
+                          variables=variables
+        )
+
     def add_asset(self, key, data, workflow_run_id, is_draft, operation_run_id=None):
         """Add a new asset
             Args:
@@ -2630,7 +2726,7 @@ class CooperPair(object):
              }
              """,
                             variables=variables
-                            )
+        )
         return result
 
     def get_asset(self, asset_id):
@@ -2668,7 +2764,7 @@ class CooperPair(object):
             }
             """,
                           variables=variables
-                          )
+        )
 
     def get_assets(self, workflow_run_id, asset_keys, include_drafts=False):
         """Retrieve a list of assets given a workflow_run_id and list of asset_keys
@@ -2705,5 +2801,6 @@ class CooperPair(object):
                 }
             }
             """,
-                          variables=variables)
+                          variables=variables
+        )
 
