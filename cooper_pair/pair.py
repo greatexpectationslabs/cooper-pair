@@ -2619,8 +2619,39 @@ class CooperPair(object):
                           variables=variables
         )
 
+    def get_all_workflow_environments(self):
+        """
+        Retrieve all existing workflow environments
+        :return: A dict containing all workflow environments
+        """
+        return self.query("""
+            query {
+                allWorkflowEnvironments {
+                    edges {
+                        node {
+                            id
+                            name
+                            workflowName
+                            data_dict
+                            createdBy {
+                                id
+                                firstName
+                                lastName
+                                email
+                            }   
+                            organizationId
+                            deleted
+                            deletedAt
+                            createdAt
+                            updatedAt
+                        }
+                    }
+                }
+            }
+        """)
+
     def get_workflow_environment(self, workflow_environment_id):
-        """Retrieve a workflow_envirnment given its id
+        """Retrieve a workflow_environment given its id
             Args:
                 workflow_environment_id (int or str Relay id) -- a workflow_environment id
 
@@ -2634,23 +2665,139 @@ class CooperPair(object):
         return self.query("""
             query workflowEnvironmentQuery($workflow_environment_id: ID!) {
                 workflowEnvironment(id: $workflow_environment_id) {
-                    workflowEnvironment {
+                    id
+                    name
+                    workflowName
+                    data_dict
+                    createdBy {
                         id
-                        name
-                        workflowName
-                        data_dict
-                        createdBy {
-                            id
-                            firstName
-                            lastName
-                            email
-                        }   
-                        organizationId
-                        deleted
-                        deletedAt
-                        createdAt
-                        updatedAt
+                        firstName
+                        lastName
+                        email
                     }   
+                    organizationId
+                    deleted
+                    deletedAt
+                    createdAt
+                    updatedAt
+                }   
+            }
+        """,
+                          variables=variables
+        )
+
+    def get_workflow_environment_by_name_and_workflow_name(self, name, workflow_name):
+        """Retrieve a workflow_environment given a unique combination of a name and a workflow name
+            Args:
+                workflow_environment_name (string) -- name of workflow environment
+                workflow_name (string) -- name of a workflow
+
+            Returns:
+                A dict representation of the retrieved workflow_environment
+        """
+        variables = {
+            'workflow_environment_name': workflow_environment_name
+            'workflow_name': workflow_name
+        }
+
+        return self.query("""
+            query workflowEnvironmentByNameAndWorkflowNameQuery($workflow_environment_name: String!, $workflow_name: String!) {
+                workflowEnvironmentByNameAndWorkflowName(name: $workflow_environment_name, workflow_name: $workflow_name) {
+                    id
+                    name
+                    workflowName
+                    data_dict
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }   
+                    organizationId
+                    deleted
+                    deletedAt
+                    createdAt
+                    updatedAt
+                }   
+            }
+        """,
+                          variables=variables
+        )
+
+    def get_workflow_environments_by_name(self, workflow_environment_name):
+        """Retrieve workflow_environments given a name (could couple with multiple workflow names)
+            Args:
+                workflow_environment_name (string) -- name of workflow environment (could correspond to multiple records)
+
+            Returns:
+                A list of dict representations of the retrieved workflow environment records
+        """
+        variables = {
+            'workflow_environment_name': workflow_environment_name
+        }
+
+        return self.query("""
+            query workflowEnvironmentsByNameQuery($workflow_environment_name: String!) {
+                workflowEnvironmentsByName(name: $workflow_environment_name) {
+                    edges {
+                        node {
+                            id
+                            name
+                            workflowName
+                            data_dict
+                            createdBy {
+                                id
+                                firstName
+                                lastName
+                                email
+                            }   
+                            organizationId
+                            deleted
+                            deletedAt
+                            createdAt
+                            updatedAt
+                        }
+                    }
+                }   
+            }
+        """,
+                          variables=variables
+        )
+
+    def get_workflow_environments_by_workflow_name(self, workflow_name):
+        """Retrieve workflow_environments given a workflow name (could couple with multiple workflow environment names)
+            Args:
+                workflow_name (string) -- name of a workflow (could correspond to multiple records)
+
+            Returns:
+                A list of dict representations of the retrieved workflow environment records
+        """
+        variables = {
+            'workflow_name': workflow_name
+        }
+
+        return self.query("""
+            query workflowEnvironmentsByWorkflowNameQuery($workflow_name: String!) {
+                workflowEnvironmentsByWorkflowName(workflow_name: $workflow_name) {
+                    edges {
+                        node {
+                            id
+                            name
+                            workflowName
+                            data_dict
+                            createdBy {
+                                id
+                                firstName
+                                lastName
+                                email
+                            }   
+                            organizationId
+                            deleted
+                            deletedAt
+                            createdAt
+                            updatedAt
+                        }
+                    }
                 }   
             }
         """,
