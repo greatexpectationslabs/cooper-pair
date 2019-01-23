@@ -2696,7 +2696,7 @@ class CooperPair(object):
                 A dict representation of the retrieved workflow_environment
         """
         variables = {
-            'workflow_environment_name': workflow_environment_name
+            'workflow_environment_name': workflow_environment_name,
             'workflow_name': workflow_name
         }
 
