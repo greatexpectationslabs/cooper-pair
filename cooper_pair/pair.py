@@ -181,7 +181,7 @@ class CooperPair(object):
                     'using stored credentials...')
 
         query_gql = gql(query)
-        
+
         try:
             return self.client.execute(query_gql, variable_values=variables)
         except (requests.exceptions.HTTPError, RetryError):
@@ -203,18 +203,18 @@ class CooperPair(object):
                 'expectationId': result['expectation_id'],
                 'expectationType': result['expectation_config']['expectation_type'],
                 'expectationKwargs': json.dumps(result['expectation_config']['kwargs']),
-            
+
                 'raisedException': result['exception_info']['raised_exception'],
                 'exceptionTraceback': result['exception_info']['exception_traceback'],
                 # 'exceptionMessage': result['exception_info']['exception_message'], #FIXME: Allotrope needs a new DB field to store this in
-            
+
                 'summaryObj': (
                     json.dumps(result['result'])
                     if 'result' in result else json.dumps({})
                 )
             }
             for result in ge_results]
-    
+
     def get_evaluation(self, evaluation_id):
         """
         Query an evaluation by id
@@ -262,7 +262,7 @@ class CooperPair(object):
             """,
             variables={'id': evaluation_id}
         )
-    
+
     def add_evaluation(
             self,
             dataset_id=None,
@@ -288,7 +288,7 @@ class CooperPair(object):
         """
         if not checkpoint_id and not checkpoint_name:
             raise ValueError('must provide checkpoint_id or checkpoint_name')
-                
+
         return self.query("""
             mutation addEvaluationMutation($evaluation: AddEvaluationInput!) {
                 addEvaluation(input: $evaluation) {
@@ -351,7 +351,7 @@ class CooperPair(object):
                 'statusOrdinal': status_ordinal
             }
         })
-    
+
     def evaluate_checkpoint_on_pandas_df(
             self,
             checkpoint_id,
@@ -359,25 +359,25 @@ class CooperPair(object):
             filename=None,
             project_id=None):
         """Evaluate a expectation_suite on a pandas.DataFrame.
-        
+
         Args:
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
             pandas_df (pandas.DataFrame) -- The data frame on which to
                 evaluate the expectation_suite.
-        
+
         Kwargs:
             filename (str) -- The filename to associate with the dataset
                 (default: None, the name attribute of the pandas_df argument
                 will be used).
             project_id (int or str Relay id) -- The id of the project to associate
                 with the evaluation
-        
+
         Returns:
             A dict representation of the evaluation.
         """
-        
-        
+
+
         dataset = self.add_dataset_from_pandas_df(
             pandas_df,
             project_id,
@@ -394,20 +394,20 @@ class CooperPair(object):
             filename=None,
             project_id=None):
         """Evaluate a expectation_suite on a file.
-        
+
         Args:
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
             fd (file-like) -- A file descriptor or file-like object to
                 evaluate, opened as 'rb'.
-        
+
         Kwargs:
             filename (str) -- The filename to associate with the dataset
                 (default: None, the name attribute of the pandas_df argument
                 will be used).
             project_id (int or str Relay id) -- The id of the project to associate
                 with the evaluation
-        
+
         Returns:
             A dict representation of the evaluation.
         """
@@ -428,7 +428,7 @@ class CooperPair(object):
             checkpoint_name=None):
         """
         Evaluate a Pandas DataFrame against a checkpoint
-        
+
         :param pandas_df: (pandas.DataFrame) The data frame on which to
                 evaluate the checkpoint.
         :param dataset_label: (str) a human-readable name to associate with
@@ -437,7 +437,7 @@ class CooperPair(object):
                 to evaluate against
         :param checkpoint_name: (str) the name of the checkpoint to evaluate
                 against
-                
+
         :return: a Great Expectations result object, as returned by .validate method
         """
         if not checkpoint_id and not checkpoint_name:
@@ -447,16 +447,16 @@ class CooperPair(object):
         expectations_config = self.get_checkpoint_as_expectations_config(
             checkpoint_id=checkpoint_id, checkpoint_name=checkpoint_name)
         expectation_ids = expectations_config.pop('expectation_ids', [])
-        
+
         ge_results = pandas_df.validate(
             expectations_config=expectations_config,
             result_format="SUMMARY",
             catch_exceptions=True)
         results = ge_results['results']
-        
+
         for idx, expectation_id in enumerate(expectation_ids):
             results[idx]['expectation_id'] = expectation_id
-        
+
         munged_results = self.munge_ge_evaluation_results(ge_results=results)
         new_dataset = self.add_dataset(project_id=1, label=dataset_label)
         new_dataset_id = new_dataset['addDataset']['dataset']['id']
@@ -467,7 +467,7 @@ class CooperPair(object):
             results=munged_results
         )
         return ge_results
-    
+
     def update_evaluation(self, evaluation_id, status_ordinal=None, results=None):
         """Update an evaluation.
 
@@ -488,7 +488,7 @@ class CooperPair(object):
         }
         if results is not None:
             variables['updateEvaluation']['results'] = results
-            
+
         if status_ordinal is not None:
             variables['updateEvaluation']['statusOrdinal'] = status_ordinal
 
@@ -545,7 +545,7 @@ class CooperPair(object):
             }
             """, variables=variables
         )
-        
+
     def delete_evaluation(self, evaluation_id):
         """Delete an evaluation (soft delete).
 
@@ -663,7 +663,7 @@ class CooperPair(object):
                 }
             }
         )
-        
+
     def add_dataset_simple(self, label, checkpoint_id, locator_dict, project_id=None):
         """
         Add a new Dataset object. Bypasses AddDataset mutation logic used for
@@ -678,7 +678,7 @@ class CooperPair(object):
         :param project_id: (int or string Relay id, optional) id of project dataset belongs to
         :return: a dict representing the added Dataset
         """
-        
+
         return self.query("""
             mutation addDatasetMutation($dataset: AddDatasetInput!) {
                 addDataset(input: $dataset) {
@@ -822,7 +822,7 @@ class CooperPair(object):
             }
             """, variables=variables
         )
-    
+
     def munge_ge_expectations_config(self, expectations_config):
         """
         Convert a Great Expectations expectations_config into a list
@@ -833,13 +833,13 @@ class CooperPair(object):
         """
         expectations = expectations_config['expectations']
         munged_expectations = []
-    
+
         for expectation in expectations:
             munged_expectations.append({
                 'expectationType': expectation['expectation_type'],
                 'expectationKwargs': json.dumps(expectation['kwargs'])
             })
-    
+
         return munged_expectations
 
     def munge_ge_expectations_list(self, expectations):
@@ -851,13 +851,13 @@ class CooperPair(object):
         :return: a list of parsed expectation dicts
         """
         munged_expectations = []
-    
+
         for expectation in expectations:
             munged_expectations.append({
                 'expectationType': expectation['expectation_type'],
                 'expectationKwargs': json.dumps(expectation['kwargs'])
             })
-    
+
         return munged_expectations
 
     def get_expectation_suite(self, expectation_suite_id):
@@ -925,7 +925,7 @@ class CooperPair(object):
             A JSON representation of the expectation_suite.
         """
         expectation_suite = self.get_expectation_suite(expectation_suite_id)['expectationSuite']
-        
+
         if include_inactive:
             expectations = [
                 expectation['node']
@@ -964,7 +964,7 @@ class CooperPair(object):
                 great_expectations.dataset.DataSet.get_expectations_config.
         """
         expectation_suite = self.get_expectation_suite(expectation_suite_id)['expectationSuite']
-    
+
         if include_inactive:
             expectations = [
                 expectation['node']
@@ -1130,7 +1130,7 @@ class CooperPair(object):
                 'expectations': expectations
             }
         })
-    
+
     def add_expectation_suite_from_expectations_config(
             self, expectations_config, name):
         """Create a new expectation_suite from a great_expectations expectations
@@ -1166,7 +1166,7 @@ class CooperPair(object):
         """
         expectations = self.munge_ge_expectations_list(expectations_list)
         return self.add_expectation_suite(name=name, expectations=expectations)
-    
+
     def update_expectation_suite(
         self,
         expectation_suite_id,
@@ -1275,7 +1275,7 @@ class CooperPair(object):
             """,
             variables={'id': expectation_id}
         )
-    
+
     def add_expectation(
             self,
             expectation_suite_id,
@@ -1548,12 +1548,12 @@ class CooperPair(object):
         """
         if not checkpoint_id and not checkpoint_name:
             raise ValueError('must provide checkpoint_id or checkpoint_name')
-        
+
         if checkpoint_id:
             checkpoint = self.get_checkpoint(checkpoint_id)
         else:
             checkpoint = self.get_checkpoint_by_name(checkpoint_name)
-    
+
         if include_inactive:
             expectations = [
                 expectation['node']
@@ -1701,7 +1701,7 @@ class CooperPair(object):
 
     def setup_checkpoint_from_ge_expectations_config(
             self, checkpoint_name, expectations_config, slack_webhook=None):
-        
+
         """
         First creates a new expectation suite, which generates new default checkpoint, sensor,
         and datasource for manual file upload. After a new expectation suite is created, the new
@@ -1717,7 +1717,7 @@ class CooperPair(object):
         return self.add_checkpoint(
             name=checkpoint_name, expectation_suite_id=new_expectation_suite_id, slack_webhook=slack_webhook
         )
-        
+
     def setup_checkpoint_from_ge_expectations_list(
             self, checkpoint_name, expectations_list, slack_webhook=None):
         """
@@ -1760,7 +1760,7 @@ class CooperPair(object):
                 }
             }
             """, variables={'id': checkpoint_id})
-    
+
     def add_sensor(self, name, sensor_type, data_source_id=None, excluded_paths=None, sensor_config=None):
         """
         Adds a new sensor.
@@ -1779,14 +1779,14 @@ class CooperPair(object):
                 'sensor_type': sensor_type
             }
         }
-        
+
         if data_source_id:
             variables['sensor']['dataSourceId'] = data_source_id
         if excluded_paths:
             variables['sensor']['excludedPaths'] = json.dumps(excluded_paths)
         if sensor_config:
             variables['sensor']['sensorConfig'] = json.dumps(sensor_config)
-        
+
         return self.query("""
             mutation addSensorMutation($sensor: AddSensorInput!) {
                 addSensor(input: $sensor) {
@@ -1811,7 +1811,7 @@ class CooperPair(object):
             }""",
             variables=variables
         )
-        
+
     def update_sensor(self, sensor_id, name=None, data_source_id=None, excluded_paths=None, sensor_config=None):
         """
         Updates an existing sensor.
@@ -1838,7 +1838,7 @@ class CooperPair(object):
             variables['sensor']['excludedPaths'] = json.dumps(excluded_paths)
         if sensor_config:
             variables['sensor']['sensorConfig'] = json.dumps(sensor_config)
-            
+
         return self.query("""
             mutation updateSensorMutation($sensor: UpdateSensorInput!) {
                 updateSensor(input: $sensor) {
@@ -1888,7 +1888,7 @@ class CooperPair(object):
                     }
                 }
         )
-    
+
     def trigger_sensor(self, sensor_id):
         return self.query("""
             mutation triggerSensorMutation($sensor: TriggerSensorInput!) {
@@ -1902,7 +1902,7 @@ class CooperPair(object):
                     }
                 }
         )
-    
+
     def add_data_source(self, name, ds_type, is_activated=True, credentials_reference=None):
         """
         Adds a new data source.
@@ -1926,10 +1926,10 @@ class CooperPair(object):
                 'isActivated': is_activated,
             }
         }
-        
+
         if credentials_reference:
             variables['dataSource']['credentialsReference'] = json.dumps(credentials_reference)
-        
+
         return self.query("""
             mutation addDataSourceMutation($dataSource: AddDataSourceInput!) {
                 addDataSource(input: $dataSource) {
@@ -1953,7 +1953,7 @@ class CooperPair(object):
             }""",
             variables=variables
         )
-        
+
     def update_data_source(
             self,
             data_source_id,
@@ -2000,7 +2000,7 @@ class CooperPair(object):
             variables['dataSource']['testStatus'] = test_status
         if test_error_message:
             variables['dataSource']['testErrorMessage'] = test_error_message
-        
+
         return self.query("""
             mutation updateDataSourceMutation($dataSource: UpdateDataSourceInput!) {
                 updateDataSource(input: $dataSource) {
@@ -2044,7 +2044,7 @@ class CooperPair(object):
                 }
             }
             """, variables={'name': name})['configProperty']
-        
+
         if config_property:
             return config_property['value']
         else:
@@ -2062,7 +2062,7 @@ class CooperPair(object):
                 }
             }
         }""")
-    
+
     def list_priority_levels(self):
         return self.query("""{
             allPriorityLevels {
@@ -2104,10 +2104,10 @@ class CooperPair(object):
                 'status': status
             }
         }
-    
+
         if message is not None:
             variables['operationRun']['message'] = message
-    
+
         return self.query("""
             mutation addOperationRunMutation($operationRun: AddOperationRunInput!) {
                 addOperationRun(input: $operationRun) {
@@ -2237,13 +2237,13 @@ class CooperPair(object):
             A dict representing the parsed results of the mutation.
         """
 
-    
+
         variables = {
             'operationRun': {
                 'id': operation_run_id
             }
         }
-    
+
         if start_date_time is not None:
             variables['operationRun']['startDateTime'] = start_date_time.isoformat()
         if end_date_time is not None:
@@ -2256,7 +2256,7 @@ class CooperPair(object):
             variables['operationRun']['message'] = message
         if deleted is not None:
             variables['operationRun']['deleted'] = deleted
-            
+
         result = self.query("""
              mutation updateOperationRunMutation($operationRun: UpdateOperationRunInput!) {
                  updateOperationRun(input: $operationRun) {
@@ -2397,7 +2397,7 @@ class CooperPair(object):
             """,
                   variables=variables
         )
-        
+
     def get_workflow_run_status(self, workflow_run_id):
         """Retrieve status of workflow_run given workflow_run id
             Args:
@@ -2453,7 +2453,7 @@ class CooperPair(object):
             """,
                   variables=variables
         )
-        
+
     def get_workflow_runs_by_name(self, workflow_name):
         """Retrieve workflow_runs with a given workflow name
             Args:
@@ -2486,7 +2486,7 @@ class CooperPair(object):
             """,
                   variables=variables
         )
-        
+
     def get_next_workflow_run_operations(self, workflow_run_id):
         """Retrieve the next possible operations for a workflow_run with given id
             Args:
@@ -2506,7 +2506,7 @@ class CooperPair(object):
             """,
                   variables=variables
         )
-        
+
     def get_workflow_run_blocking_assets(self, workflow_run_id):
         """Retrieve a workflow run's blocking assets. Blocking assets are assets that their absence
         is the only thing blocking an operation (not all of whose outputs are registered as assets) from running
@@ -2570,14 +2570,14 @@ class CooperPair(object):
                             firstName
                             lastName
                             email
-                        }   
+                        }
                         organizationId
                         deleted
                         deletedAt
                         createdAt
                         updatedAt
-                    }   
-                }   
+                    }
+                }
             }
         """,
               variables=variables
@@ -2621,14 +2621,14 @@ class CooperPair(object):
                             firstName
                             lastName
                             email
-                        }   
+                        }
                         organizationId
                         deleted
                         deletedAt
                         createdAt
                         updatedAt
-                    }   
-                }   
+                    }
+                }
             }
         """,
                           variables=variables
@@ -2662,14 +2662,14 @@ class CooperPair(object):
                             firstName
                             lastName
                             email
-                        }   
+                        }
                         organizationId
                         deleted
                         deletedAt
                         createdAt
                         updatedAt
-                    }   
-                }   
+                    }
+                }
             }
         """,
                           variables=variables
@@ -2694,7 +2694,7 @@ class CooperPair(object):
                                 firstName
                                 lastName
                                 email
-                            }   
+                            }
                             organizationId
                             deleted
                             deletedAt
@@ -2730,13 +2730,13 @@ class CooperPair(object):
                         firstName
                         lastName
                         email
-                    }   
+                    }
                     organizationId
                     deleted
                     deletedAt
                     createdAt
                     updatedAt
-                }   
+                }
             }
         """,
                           variables=variables
@@ -2768,93 +2768,128 @@ class CooperPair(object):
                         firstName
                         lastName
                         email
-                    }   
+                    }
                     organizationId
                     deleted
                     deletedAt
                     createdAt
                     updatedAt
-                }   
+                }
             }
         """,
                           variables=variables
         )
 
-    def get_workflow_environments_by_name(self, workflow_environment_name):
+    def get_all_workflow_environments_with_include_deleted_option(self, include_deleted=True):
+        """Retrieve all existing workflow environments
+            Args:
+                include_deleted (boolean) -- an optional flag (True by default) indicating whether or not to include
+                deleted workflow environment records
+
+            Returns:
+                A list of dict representations of the retrieved workflow environment records
+        """
+        variables = {
+            'include_deleted': include_deleted
+        }
+
+        return self.query("""
+            query allWorkflowEnvironmentsWithIncludeDeletedOptionQuery($include_deleted: Boolean) {
+                allWorkflowEnvironmentsWithIncludeDeletedOption(includeDeleted: $include_deleted) {
+                    id
+                    name
+                    workflowName
+                    dataDict
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    organizationId
+                    deleted
+                    deletedAt
+                    createdAt
+                    updatedAt
+                }
+            }
+        """,
+                          variables=variables
+        )
+
+    def get_workflow_environments_by_name(self, workflow_environment_name, include_deleted=True):
         """Retrieve workflow_environments given a name (could couple with multiple workflow names)
             Args:
                 workflow_environment_name (string) -- name of workflow environment (could correspond to multiple records)
+                include_deleted (boolean) -- an optional flag (True by default) indicating whether or not to include
+                deleted workflow environment records
 
             Returns:
                 A list of dict representations of the retrieved workflow environment records
         """
         variables = {
-            'workflow_environment_name': workflow_environment_name
+            'workflow_environment_name': workflow_environment_name,
+            'include_deleted': include_deleted
         }
 
         return self.query("""
-            query workflowEnvironmentsByNameQuery($workflow_environment_name: String!) {
-                workflowEnvironmentsByName(name: $workflow_environment_name) {
-                    edges {
-                        node {
-                            id
-                            name
-                            workflowName
-                            dataDict
-                            createdBy {
-                                id
-                                firstName
-                                lastName
-                                email
-                            }   
-                            organizationId
-                            deleted
-                            deletedAt
-                            createdAt
-                            updatedAt
-                        }
+            query workflowEnvironmentsByNameQuery($workflow_environment_name: String!, $include_deleted: Boolean) {
+                workflowEnvironmentsByName(name: $workflow_environment_name, includeDeleted: $include_deleted) {
+                    id
+                    name
+                    workflowName
+                    dataDict
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
                     }
-                }   
+                    organizationId
+                    deleted
+                    deletedAt
+                    createdAt
+                    updatedAt
+                }
             }
         """,
                           variables=variables
         )
 
-    def get_workflow_environments_by_workflow_name(self, workflow_name):
+    def get_workflow_environments_by_workflow_name(self, workflow_name, include_deleted=True):
         """Retrieve workflow_environments given a workflow name (could couple with multiple workflow environment names)
             Args:
                 workflow_name (string) -- name of a workflow (could correspond to multiple records)
+                include_deleted (boolean) -- an optional flag (True by default) indicating whether or not to include
+                deleted workflow environment records
 
             Returns:
                 A list of dict representations of the retrieved workflow environment records
         """
         variables = {
-            'workflow_name': workflow_name
+            'workflow_name': workflow_name,
+            'include_deleted': include_deleted
         }
 
         return self.query("""
-            query workflowEnvironmentsByWorkflowNameQuery($workflow_name: String!) {
-                workflowEnvironmentsByWorkflowName(workflow_name: $workflow_name) {
-                    edges {
-                        node {
-                            id
-                            name
-                            workflowName
-                            dataDict
-                            createdBy {
-                                id
-                                firstName
-                                lastName
-                                email
-                            }   
-                            organizationId
-                            deleted
-                            deletedAt
-                            createdAt
-                            updatedAt
-                        }
+            query workflowEnvironmentsByWorkflowNameQuery($workflow_name: String!, $include_deleted: Boolean) {
+                workflowEnvironmentsByWorkflowName(workflowName: $workflow_name, includeDeleted: $include_deleted) {
+                    id
+                    name
+                    workflowName
+                    dataDict
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
                     }
-                }   
+                    organizationId
+                    deleted
+                    deletedAt
+                    createdAt
+                    updatedAt
+                }
             }
         """,
                           variables=variables
@@ -2929,20 +2964,20 @@ class CooperPair(object):
         Returns:
             A dict representing the parsed results of the mutation.
         """
-    
+
         variables = {
             'asset': {
                 'id': asset_id
             }
         }
-    
+
         if is_draft is not None:
             variables['asset']['isDraft'] = is_draft
         if data is not None:
             variables['asset']['data'] = data
         if deleted is not None:
             variables['asset']['deleted'] = deleted
-    
+
         result = self.query("""
              mutation updateAssetMutation($asset: UpdateAssetInput!) {
                  updateAsset(input: $asset) {
