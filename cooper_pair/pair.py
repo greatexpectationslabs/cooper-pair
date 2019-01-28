@@ -2388,6 +2388,12 @@ class CooperPair(object):
                         lastName
                         email
                     }
+                    workflowEnvironment {
+                        id
+                        name
+                        workflowName
+                        dataDict
+                    }
                     deleted
                     deletedAt
                     updatedAt
