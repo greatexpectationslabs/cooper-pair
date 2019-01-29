@@ -2764,7 +2764,7 @@ class CooperPair(object):
 
         return self.query("""
             query workflowEnvironmentByNameAndWorkflowNameQuery($workflow_environment_name: String!, $workflow_name: String!) {
-                workflowEnvironmentByNameAndWorkflowName(name: $workflow_environment_name, workflow_name: $workflow_name) {
+                workflowEnvironmentByNameAndWorkflowName(name: $workflow_environment_name, workflowName: $workflow_name) {
                     id
                     name
                     workflowName
