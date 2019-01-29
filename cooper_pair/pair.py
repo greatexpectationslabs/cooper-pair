@@ -2534,12 +2534,12 @@ class CooperPair(object):
                   variables=variables
         )
 
-    def add_workflow_environment(self, workflow_environment_name, workflow_name, data_dict):
+    def add_workflow_environment(self, workflow_environment_name, workflow_name, data_dict_json):
         """Add a new workflow_environment
             Args:
                 workflow_environment_name (string) -- name of workflow_environment
                 workflow_name (string) -- name of workflow
-                data_dict (JSON dict) -- environment configuration as JSON.
+                data_dict_json (JSON dict) -- environment configuration as JSON.
                 Note that these environment attributes are not yet validated
                 by client or server code, so failures will occur at evaluation time.
 
@@ -2549,17 +2549,17 @@ class CooperPair(object):
             Raises:
                 ValueError, if expectation_kwargs are not parseable as JSON
         """
-        # TODO: <Alex>Use common code (JSON schema) to validate data_dict</Alex>
+        # TODO: <Alex>Use common code (JSON schema) to validate data_dict_json</Alex>
         try:
-            json.loads(data_dict)
+            json.loads(data_dict_json)
         except (TypeError, ValueError):
-            raise ValueError('Must provide valid JSON data_dict (got %s)', data_dict)
+            raise ValueError('Must provide valid JSON data_dict_json (got {0:s} of type {1:s}).'.format(str(data_dict_json), str(type(data_dict_json))))
 
         variables = {
             'workflowEnvironmentParams': {
                 'name': workflow_environment_name,
                 'workflowName': workflow_name,
-                'dataDict': data_dict
+                'dataDict': data_dict_json
             }
         }
 
@@ -2589,30 +2589,30 @@ class CooperPair(object):
               variables=variables
         )
 
-    def update_workflow_environment(self, workflow_environment_id, data_dict):
+    def update_workflow_environment(self, workflow_environment_id, data_dict_json):
         """Update an existing workflow_environment
             Args:
                 workflow_environment_id (int or str Relay id) -- The id of the workflow environment to update.
-                data_dict (JSON dict) -- environment configuration as JSON.
+                data_dict_json (JSON dict) -- environment configuration as JSON.
                 Note that these environment attributes are not yet validated
                 by client or server code, so failures will occur at evaluation time.
 
             Returns:
                 A dict representation of the updated workflow_environment
         """
-        # TODO: <Alex>Use common code (JSON schema) to validate data_dict</Alex>
+        # TODO: <Alex>Use common code (JSON schema) to validate data_dict_json</Alex>
         try:
-            json.loads(data_dict)
+            json.loads(data_dict_json)
         except (TypeError, ValueError):
-            raise ValueError('Must provide valid JSON data_dict (got %s)', data_dict)
+            raise ValueError('Must provide valid JSON data_dict_json (got {0:s} of type {1:s}).'.format(str(data_dict_json), str(type(data_dict_json))))
 
         variables = {
             'workflowEnvironmentParams': {
                 'id': workflow_environment_id
             }
         }
-        if data_dict is not None:
-            variables['workflowEnvironmentParams']['dataDict'] = data_dict
+        if data_dict_json is not None:
+            variables['workflowEnvironmentParams']['dataDict'] = data_dict_json
 
         return self.query("""
             mutation updateWorkflowEnvironmentMutation($workflowEnvironmentParams: UpdateWorkflowEnvironmentInput!) {
@@ -2748,7 +2748,7 @@ class CooperPair(object):
                           variables=variables
         )
 
-    def get_workflow_environment_by_name_and_workflow_name(self, name, workflow_name):
+    def get_workflow_environment_by_name_and_workflow_name(self, workflow_environment_name, workflow_name):
         """Retrieve a workflow_environment given a unique combination of a name and a workflow name
             Args:
                 workflow_environment_name (string) -- name of workflow environment
