@@ -181,7 +181,7 @@ class CooperPair(object):
                     'using stored credentials...')
 
         query_gql = gql(query)
-        
+
         try:
             return self.client.execute(query_gql, variable_values=variables)
         except (requests.exceptions.HTTPError, RetryError):
@@ -203,18 +203,18 @@ class CooperPair(object):
                 'expectationId': result['expectation_id'],
                 'expectationType': result['expectation_config']['expectation_type'],
                 'expectationKwargs': json.dumps(result['expectation_config']['kwargs']),
-            
+
                 'raisedException': result['exception_info']['raised_exception'],
                 'exceptionTraceback': result['exception_info']['exception_traceback'],
                 # 'exceptionMessage': result['exception_info']['exception_message'], #FIXME: Allotrope needs a new DB field to store this in
-            
+
                 'summaryObj': (
                     json.dumps(result['result'])
                     if 'result' in result else json.dumps({})
                 )
             }
             for result in ge_results]
-    
+
     def get_evaluation(self, evaluation_id):
         """
         Query an evaluation by id
@@ -262,7 +262,7 @@ class CooperPair(object):
             """,
             variables={'id': evaluation_id}
         )
-    
+
     def add_evaluation(
             self,
             dataset_id=None,
@@ -288,7 +288,7 @@ class CooperPair(object):
         """
         if not checkpoint_id and not checkpoint_name:
             raise ValueError('must provide checkpoint_id or checkpoint_name')
-                
+
         return self.query("""
             mutation addEvaluationMutation($evaluation: AddEvaluationInput!) {
                 addEvaluation(input: $evaluation) {
@@ -351,7 +351,7 @@ class CooperPair(object):
                 'statusOrdinal': status_ordinal
             }
         })
-    
+
     def evaluate_checkpoint_on_pandas_df(
             self,
             checkpoint_id,
@@ -359,25 +359,25 @@ class CooperPair(object):
             filename=None,
             project_id=None):
         """Evaluate a expectation_suite on a pandas.DataFrame.
-        
+
         Args:
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
             pandas_df (pandas.DataFrame) -- The data frame on which to
                 evaluate the expectation_suite.
-        
+
         Kwargs:
             filename (str) -- The filename to associate with the dataset
                 (default: None, the name attribute of the pandas_df argument
                 will be used).
             project_id (int or str Relay id) -- The id of the project to associate
                 with the evaluation
-        
+
         Returns:
             A dict representation of the evaluation.
         """
-        
-        
+
+
         dataset = self.add_dataset_from_pandas_df(
             pandas_df,
             project_id,
@@ -394,20 +394,20 @@ class CooperPair(object):
             filename=None,
             project_id=None):
         """Evaluate a expectation_suite on a file.
-        
+
         Args:
             checkpoint_id (int or str Relay id) -- The id of the checkpoint to
                 evaluate.
             fd (file-like) -- A file descriptor or file-like object to
                 evaluate, opened as 'rb'.
-        
+
         Kwargs:
             filename (str) -- The filename to associate with the dataset
                 (default: None, the name attribute of the pandas_df argument
                 will be used).
             project_id (int or str Relay id) -- The id of the project to associate
                 with the evaluation
-        
+
         Returns:
             A dict representation of the evaluation.
         """
@@ -428,7 +428,7 @@ class CooperPair(object):
             checkpoint_name=None):
         """
         Evaluate a Pandas DataFrame against a checkpoint
-        
+
         :param pandas_df: (pandas.DataFrame) The data frame on which to
                 evaluate the checkpoint.
         :param dataset_label: (str) a human-readable name to associate with
@@ -437,7 +437,7 @@ class CooperPair(object):
                 to evaluate against
         :param checkpoint_name: (str) the name of the checkpoint to evaluate
                 against
-                
+
         :return: a Great Expectations result object, as returned by .validate method
         """
         if not checkpoint_id and not checkpoint_name:
@@ -447,16 +447,16 @@ class CooperPair(object):
         expectations_config = self.get_checkpoint_as_expectations_config(
             checkpoint_id=checkpoint_id, checkpoint_name=checkpoint_name)
         expectation_ids = expectations_config.pop('expectation_ids', [])
-        
+
         ge_results = pandas_df.validate(
             expectations_config=expectations_config,
             result_format="SUMMARY",
             catch_exceptions=True)
         results = ge_results['results']
-        
+
         for idx, expectation_id in enumerate(expectation_ids):
             results[idx]['expectation_id'] = expectation_id
-        
+
         munged_results = self.munge_ge_evaluation_results(ge_results=results)
         new_dataset = self.add_dataset(project_id=1, label=dataset_label)
         new_dataset_id = new_dataset['addDataset']['dataset']['id']
@@ -467,7 +467,7 @@ class CooperPair(object):
             results=munged_results
         )
         return ge_results
-    
+
     def update_evaluation(self, evaluation_id, status_ordinal=None, results=None):
         """Update an evaluation.
 
@@ -488,7 +488,7 @@ class CooperPair(object):
         }
         if results is not None:
             variables['updateEvaluation']['results'] = results
-            
+
         if status_ordinal is not None:
             variables['updateEvaluation']['statusOrdinal'] = status_ordinal
 
@@ -543,8 +543,9 @@ class CooperPair(object):
                     }
                 }
             }
-            """, variables=variables)
-        
+            """, variables=variables
+        )
+
     def delete_evaluation(self, evaluation_id):
         """Delete an evaluation (soft delete).
 
@@ -573,7 +574,8 @@ class CooperPair(object):
                     }
                 }
             }
-            """, variables=variables)
+            """, variables=variables
+        )
 
     def get_dataset(self, dataset_id):
         """Retrieve a dataset by its id.
@@ -661,7 +663,7 @@ class CooperPair(object):
                 }
             }
         )
-        
+
     def add_dataset_simple(self, label, checkpoint_id, locator_dict, project_id=None):
         """
         Add a new Dataset object. Bypasses AddDataset mutation logic used for
@@ -676,7 +678,7 @@ class CooperPair(object):
         :param project_id: (int or string Relay id, optional) id of project dataset belongs to
         :return: a dict representing the added Dataset
         """
-        
+
         return self.query("""
             mutation addDatasetMutation($dataset: AddDatasetInput!) {
                 addDataset(input: $dataset) {
@@ -818,8 +820,9 @@ class CooperPair(object):
                     }
                 }
             }
-            """, variables=variables)
-    
+            """, variables=variables
+        )
+
     def munge_ge_expectations_config(self, expectations_config):
         """
         Convert a Great Expectations expectations_config into a list
@@ -830,13 +833,13 @@ class CooperPair(object):
         """
         expectations = expectations_config['expectations']
         munged_expectations = []
-    
+
         for expectation in expectations:
             munged_expectations.append({
                 'expectationType': expectation['expectation_type'],
                 'expectationKwargs': json.dumps(expectation['kwargs'])
             })
-    
+
         return munged_expectations
 
     def munge_ge_expectations_list(self, expectations):
@@ -848,13 +851,13 @@ class CooperPair(object):
         :return: a list of parsed expectation dicts
         """
         munged_expectations = []
-    
+
         for expectation in expectations:
             munged_expectations.append({
                 'expectationType': expectation['expectation_type'],
                 'expectationKwargs': json.dumps(expectation['kwargs'])
             })
-    
+
         return munged_expectations
 
     def get_expectation_suite(self, expectation_suite_id):
@@ -922,7 +925,7 @@ class CooperPair(object):
             A JSON representation of the expectation_suite.
         """
         expectation_suite = self.get_expectation_suite(expectation_suite_id)['expectationSuite']
-        
+
         if include_inactive:
             expectations = [
                 expectation['node']
@@ -961,7 +964,7 @@ class CooperPair(object):
                 great_expectations.dataset.DataSet.get_expectations_config.
         """
         expectation_suite = self.get_expectation_suite(expectation_suite_id)['expectationSuite']
-    
+
         if include_inactive:
             expectations = [
                 expectation['node']
@@ -1127,7 +1130,7 @@ class CooperPair(object):
                 'expectations': expectations
             }
         })
-    
+
     def add_expectation_suite_from_expectations_config(
             self, expectations_config, name):
         """Create a new expectation_suite from a great_expectations expectations
@@ -1163,7 +1166,7 @@ class CooperPair(object):
         """
         expectations = self.munge_ge_expectations_list(expectations_list)
         return self.add_expectation_suite(name=name, expectations=expectations)
-    
+
     def update_expectation_suite(
         self,
         expectation_suite_id,
@@ -1272,7 +1275,7 @@ class CooperPair(object):
             """,
             variables={'id': expectation_id}
         )
-    
+
     def add_expectation(
             self,
             expectation_suite_id,
@@ -1545,12 +1548,12 @@ class CooperPair(object):
         """
         if not checkpoint_id and not checkpoint_name:
             raise ValueError('must provide checkpoint_id or checkpoint_name')
-        
+
         if checkpoint_id:
             checkpoint = self.get_checkpoint(checkpoint_id)
         else:
             checkpoint = self.get_checkpoint_by_name(checkpoint_name)
-    
+
         if include_inactive:
             expectations = [
                 expectation['node']
@@ -1616,7 +1619,7 @@ class CooperPair(object):
                             expectationSuiteId
                             sensorId
                             sensor {
-                                type
+                                sensor_type
                             }
                         }
                     }
@@ -1698,7 +1701,7 @@ class CooperPair(object):
 
     def setup_checkpoint_from_ge_expectations_config(
             self, checkpoint_name, expectations_config, slack_webhook=None):
-        
+
         """
         First creates a new expectation suite, which generates new default checkpoint, sensor,
         and datasource for manual file upload. After a new expectation suite is created, the new
@@ -1714,7 +1717,7 @@ class CooperPair(object):
         return self.add_checkpoint(
             name=checkpoint_name, expectation_suite_id=new_expectation_suite_id, slack_webhook=slack_webhook
         )
-        
+
     def setup_checkpoint_from_ge_expectations_list(
             self, checkpoint_name, expectations_list, slack_webhook=None):
         """
@@ -1757,12 +1760,12 @@ class CooperPair(object):
                 }
             }
             """, variables={'id': checkpoint_id})
-    
-    def add_sensor(self, name, type, data_source_id=None, excluded_paths=None, sensor_config=None):
+
+    def add_sensor(self, name, sensor_type, data_source_id=None, excluded_paths=None, sensor_config=None):
         """
         Adds a new sensor.
         :param name: (str) name to identify sensor
-        :param type: (str) type of sensor
+        :param sensor_type: (str) type of sensor
         :param data_source_id: (int or str relay id) id of associated data source
         :param excluded_paths: (array of dicts) paths to exclude from evaluation on
         sensor execution, of form {'path': ..., 'reason': ...}
@@ -1773,24 +1776,24 @@ class CooperPair(object):
         variables = {
             'sensor': {
                 'name': name,
-                'type': type
+                'sensor_type': sensor_type
             }
         }
-        
+
         if data_source_id:
             variables['sensor']['dataSourceId'] = data_source_id
         if excluded_paths:
             variables['sensor']['excludedPaths'] = json.dumps(excluded_paths)
         if sensor_config:
             variables['sensor']['sensorConfig'] = json.dumps(sensor_config)
-        
+
         return self.query("""
             mutation addSensorMutation($sensor: AddSensorInput!) {
                 addSensor(input: $sensor) {
                     sensor {
                         id
                         name
-                        type
+                        sensorType
                         dataSourceId
                         createdBy {
                             id
@@ -1808,7 +1811,7 @@ class CooperPair(object):
             }""",
             variables=variables
         )
-        
+
     def update_sensor(self, sensor_id, name=None, data_source_id=None, excluded_paths=None, sensor_config=None):
         """
         Updates an existing sensor.
@@ -1835,7 +1838,7 @@ class CooperPair(object):
             variables['sensor']['excludedPaths'] = json.dumps(excluded_paths)
         if sensor_config:
             variables['sensor']['sensorConfig'] = json.dumps(sensor_config)
-            
+
         return self.query("""
             mutation updateSensorMutation($sensor: UpdateSensorInput!) {
                 updateSensor(input: $sensor) {
@@ -1885,7 +1888,7 @@ class CooperPair(object):
                     }
                 }
         )
-    
+
     def trigger_sensor(self, sensor_id):
         return self.query("""
             mutation triggerSensorMutation($sensor: TriggerSensorInput!) {
@@ -1899,12 +1902,12 @@ class CooperPair(object):
                     }
                 }
         )
-    
-    def add_data_source(self, name, type, is_activated=True, credentials_reference=None):
+
+    def add_data_source(self, name, ds_type, is_activated=True, credentials_reference=None):
         """
         Adds a new data source.
         :param name: (str) name to identify data source
-        :param type: (str) type of data source (i.e. 's3', 'database')
+        :param ds_type: (str) type of data source (i.e. 's3', 'database')
         :param is_activated: (bool) active status
         :param credentials_reference: (dict) dict configuration with info on how to
         connect to data source, e.g. {
@@ -1919,21 +1922,21 @@ class CooperPair(object):
         variables = {
             'dataSource': {
                 'name': name,
-                'type': type,
+                'ds_type': ds_type,
                 'isActivated': is_activated,
             }
         }
-        
+
         if credentials_reference:
             variables['dataSource']['credentialsReference'] = json.dumps(credentials_reference)
-        
+
         return self.query("""
             mutation addDataSourceMutation($dataSource: AddDataSourceInput!) {
                 addDataSource(input: $dataSource) {
                     dataSource {
                         id
                         name
-                        type
+                        dsType
                         isActivated
                         createdBy {
                             id
@@ -1950,12 +1953,12 @@ class CooperPair(object):
             }""",
             variables=variables
         )
-        
+
     def update_data_source(
             self,
             data_source_id,
             name=None,
-            type=None,
+            ds_type=None,
             is_activated=None,
             test_status=None,
             test_error_message=None,
@@ -1965,7 +1968,7 @@ class CooperPair(object):
         Updates an existing data source
         :param data_source_id: (int or str relay id) id of data source to update
         :param name: (str) name to identify data source
-        :param type: (str) type of data source (i.e. 's3', 'database')
+        :param ds_type: (str) type of data source (i.e. 's3', 'database')
         :param is_activated: (bool) active status
         :param test_status: (str) test status of data source (None, 'success', 'failed')
         :param test_error_message: (str) optional, error message of failed test
@@ -1987,8 +1990,8 @@ class CooperPair(object):
 
         if name:
             variables['dataSource']['name'] = name
-        if type:
-            variables['dataSource']['type'] = type
+        if ds_type:
+            variables['dataSource']['ds_type'] = ds_type
         if is_activated or is_activated is False:
             variables['dataSource']['isActivated'] = is_activated
         if credentials_reference:
@@ -1997,14 +2000,14 @@ class CooperPair(object):
             variables['dataSource']['testStatus'] = test_status
         if test_error_message:
             variables['dataSource']['testErrorMessage'] = test_error_message
-        
+
         return self.query("""
             mutation updateDataSourceMutation($dataSource: UpdateDataSourceInput!) {
                 updateDataSource(input: $dataSource) {
                     dataSource {
                         id
                         name
-                        type
+                        dsType
                         isActivated
                         testStatus
                         testErrorMessage
@@ -2041,7 +2044,7 @@ class CooperPair(object):
                 }
             }
             """, variables={'name': name})['configProperty']
-        
+
         if config_property:
             return config_property['value']
         else:
@@ -2059,7 +2062,7 @@ class CooperPair(object):
                 }
             }
         }""")
-    
+
     def list_priority_levels(self):
         return self.query("""{
             allPriorityLevels {
@@ -2101,10 +2104,10 @@ class CooperPair(object):
                 'status': status
             }
         }
-    
+
         if message is not None:
             variables['operationRun']['message'] = message
-    
+
         return self.query("""
             mutation addOperationRunMutation($operationRun: AddOperationRunInput!) {
                 addOperationRun(input: $operationRun) {
@@ -2129,7 +2132,7 @@ class CooperPair(object):
             }
         """,
                           variables=variables
-                          )
+        )
 
     def get_operation_run(self, operation_run_id):
         """Retrieve a operation_run given its id
@@ -2234,13 +2237,13 @@ class CooperPair(object):
             A dict representing the parsed results of the mutation.
         """
 
-    
+
         variables = {
             'operationRun': {
                 'id': operation_run_id
             }
         }
-    
+
         if start_date_time is not None:
             variables['operationRun']['startDateTime'] = start_date_time.isoformat()
         if end_date_time is not None:
@@ -2253,7 +2256,7 @@ class CooperPair(object):
             variables['operationRun']['message'] = message
         if deleted is not None:
             variables['operationRun']['deleted'] = deleted
-            
+
         result = self.query("""
              mutation updateOperationRunMutation($operationRun: UpdateOperationRunInput!) {
                  updateOperationRun(input: $operationRun) {
@@ -2278,9 +2281,90 @@ class CooperPair(object):
              }
              """,
                             variables=variables
-                            )
+        )
         return result
-        
+
+    def add_workflow_run(self, name, workflow_environment_id=None):
+        """Add a new workflow_run
+            Args:
+                name (string) -- name of workflow_run
+                workflow_environment_id (int or str Relay id) -- a workflow_environment id (optional)
+
+            Returns:
+                A dict representation of the added workflow_run
+        """
+        variables = {
+            'workflowRunParams': {
+                'name': name,
+                'workflowEnvironmentId': workflow_environment_id
+            }
+        }
+
+        return self.query("""
+            mutation addWorkflowRunMutation($workflowRunParams: AddWorkflowRunInput!) {
+                addWorkflowRun(input: $workflowRunParams) {
+                    workflowRun {
+                        id
+                        name
+                        workflowEnvironment {
+                            name
+                        }
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }
+                        createdAt
+                        updatedAt
+                    }
+                }
+            }
+        """,
+                          variables=variables
+        )
+
+    def update_workflow_run(self, workflow_environment_id, deleted=None):
+        """Update existing workflow_run
+            Args:
+                workflow_environment_id (int or str Relay id) -- a workflow_environment id
+                deleted (Boolean) -- whether or not this workflow_run should be marked as deleted
+
+            Returns:
+                A dict representation of the updated workflow_run
+        """
+        variables = {
+            'workflowRunParams': {
+                'id': workflow_environment_id
+            }
+        }
+        if deleted is not None:
+            variables['workflowRunParams']['deleted'] = deleted
+
+        return self.query("""
+             mutation updateWorkflowRunMutation($workflowRunParams: UpdateWorkflowRunInput!) {
+                 updateWorkflowRun(input: $workflowRunParams) {
+                     workflowRun {
+                         id
+                         name
+                         workflowEnvironment {
+                             name
+                         }
+                         createdBy {
+                             id
+                             firstName
+                             lastName
+                             email
+                         }
+                         createdAt
+                         updatedAt
+                     }
+                 }
+             }
+         """,
+                  variables=variables
+        )
+
     def get_workflow_run(self, workflow_run_id):
         """Retrieve a workflow_run given its id
             Args:
@@ -2304,6 +2388,12 @@ class CooperPair(object):
                         lastName
                         email
                     }
+                    workflowEnvironment {
+                        id
+                        name
+                        workflowName
+                        dataDict
+                    }
                     deleted
                     deletedAt
                     updatedAt
@@ -2313,7 +2403,7 @@ class CooperPair(object):
             """,
                   variables=variables
         )
-        
+
     def get_workflow_run_status(self, workflow_run_id):
         """Retrieve status of workflow_run given workflow_run id
             Args:
@@ -2369,7 +2459,7 @@ class CooperPair(object):
             """,
                   variables=variables
         )
-        
+
     def get_workflow_runs_by_name(self, workflow_name):
         """Retrieve workflow_runs with a given workflow name
             Args:
@@ -2402,7 +2492,7 @@ class CooperPair(object):
             """,
                   variables=variables
         )
-        
+
     def get_next_workflow_run_operations(self, workflow_run_id):
         """Retrieve the next possible operations for a workflow_run with given id
             Args:
@@ -2422,7 +2512,7 @@ class CooperPair(object):
             """,
                   variables=variables
         )
-        
+
     def get_workflow_run_blocking_assets(self, workflow_run_id):
         """Retrieve a workflow run's blocking assets. Blocking assets are assets that their absence
         is the only thing blocking an operation (not all of whose outputs are registered as assets) from running
@@ -2444,76 +2534,371 @@ class CooperPair(object):
                   variables=variables
         )
 
-    def add_workflow_run(self, name):
-        """Add a new workflow_run
+    def add_workflow_environment(self, workflow_environment_name, workflow_name, data_dict_json):
+        """Add a new workflow_environment
             Args:
-                name (string) -- name of workflow_run
+                workflow_environment_name (string) -- name of workflow_environment
+                workflow_name (string) -- name of workflow
+                data_dict_json (JSON dict) -- environment configuration as JSON.
+                Note that these environment attributes are not yet validated
+                by client or server code, so failures will occur at evaluation time.
 
             Returns:
-                A dict representation of the added workflow_run
+                A dict representation of the added workflow_environment
+
+            Raises:
+                ValueError, if expectation_kwargs are not parseable as JSON
         """
+        # TODO: <Alex>Use common code (JSON schema) to validate data_dict_json</Alex>
+        try:
+            json.loads(data_dict_json)
+        except (TypeError, ValueError):
+            raise ValueError('Must provide valid JSON data_dict_json (got {0:s} of type {1:s}).'.format(str(data_dict_json), str(type(data_dict_json))))
+
         variables = {
-            'workflowRun': {
-                'name': name,
+            'workflowEnvironmentParams': {
+                'name': workflow_environment_name,
+                'workflowName': workflow_name,
+                'dataDict': data_dict_json
             }
         }
 
         return self.query("""
-            mutation addWorkflowRunMutation($workflowRun: AddWorkflowRunInput!) {
-                addWorkflowRun(input: $workflowRun) {
-                    workflowRun {
+            mutation addWorkflowEnvironmentMutation($workflowEnvironmentParams: AddWorkflowEnvironmentInput!) {
+                addWorkflowEnvironment(input: $workflowEnvironmentParams) {
+                    workflowEnvironment {
                         id
                         name
+                        workflowName
+                        dataDict
                         createdBy {
                             id
                             firstName
                             lastName
                             email
                         }
+                        organizationId
+                        deleted
+                        deletedAt
                         createdAt
                         updatedAt
                     }
                 }
             }
         """,
-            variables=variables
+              variables=variables
         )
 
-    def get_asset(self, asset_id):
-        """Retrieve an asset given its id
+    def update_workflow_environment(self, workflow_environment_id, data_dict_json):
+        """Update an existing workflow_environment
             Args:
-                asset_id (int or str Relay id) -- an asset id
+                workflow_environment_id (int or str Relay id) -- The id of the workflow environment to update.
+                data_dict_json (JSON dict) -- environment configuration as JSON.
+                Note that these environment attributes are not yet validated
+                by client or server code, so failures will occur at evaluation time.
 
             Returns:
-                A dict representation of the retrieved asset
+                A dict representation of the updated workflow_environment
+        """
+        # TODO: <Alex>Use common code (JSON schema) to validate data_dict_json</Alex>
+        try:
+            json.loads(data_dict_json)
+        except (TypeError, ValueError):
+            raise ValueError('Must provide valid JSON data_dict_json (got {0:s} of type {1:s}).'.format(str(data_dict_json), str(type(data_dict_json))))
+
+        variables = {
+            'workflowEnvironmentParams': {
+                'id': workflow_environment_id
+            }
+        }
+        if data_dict_json is not None:
+            variables['workflowEnvironmentParams']['dataDict'] = data_dict_json
+
+        return self.query("""
+            mutation updateWorkflowEnvironmentMutation($workflowEnvironmentParams: UpdateWorkflowEnvironmentInput!) {
+                updateWorkflowEnvironment(input: $workflowEnvironmentParams) {
+                    workflowEnvironment {
+                        id
+                        name
+                        workflowName
+                        dataDict
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }
+                        organizationId
+                        deleted
+                        deletedAt
+                        createdAt
+                        updatedAt
+                    }
+                }
+            }
+        """,
+                          variables=variables
+        )
+
+    def delete_workflow_environment(self, workflow_environment_id):
+        """Delete an existing workflow_environment
+            Args:
+                workflow_environment_id (int or str Relay id) -- The id of the workflow environment to delete.
+
+            Returns:
+                A dict representation of the deleted workflow_environment
         """
         variables = {
-            'id': asset_id
+            'workflowEnvironmentParams': {
+                'id': workflow_environment_id,
+                'deleted': True
+            }
         }
 
         return self.query("""
-            query assetQuery($id: ID!) {
-                asset(id: $id) {
+            mutation updateWorkflowEnvironmentMutation($workflowEnvironmentParams: UpdateWorkflowEnvironmentInput!) {
+                updateWorkflowEnvironment(input: $workflowEnvironmentParams) {
+                    workflowEnvironment {
+                        id
+                        name
+                        workflowName
+                        dataDict
+                        createdBy {
+                            id
+                            firstName
+                            lastName
+                            email
+                        }
+                        organizationId
+                        deleted
+                        deletedAt
+                        createdAt
+                        updatedAt
+                    }
+                }
+            }
+        """,
+                          variables=variables
+                          )
+
+    def get_all_workflow_environments(self):
+        """
+        Retrieve all existing workflow environments
+        :return: A dict containing all workflow environments
+        """
+        return self.query("""
+            query {
+                allWorkflowEnvironments {
+                    edges {
+                        node {
+                            id
+                            name
+                            workflowName
+                            dataDict
+                            createdBy {
+                                id
+                                firstName
+                                lastName
+                                email
+                            }
+                            organizationId
+                            deleted
+                            deletedAt
+                            createdAt
+                            updatedAt
+                        }
+                    }
+                }
+            }
+        """)
+
+    def get_workflow_environment(self, workflow_environment_id):
+        """Retrieve a workflow_environment given its id
+            Args:
+                workflow_environment_id (int or str Relay id) -- a workflow_environment id
+
+            Returns:
+                A dict representation of the retrieved workflow_environment
+        """
+        variables = {
+            'workflow_environment_id': workflow_environment_id
+        }
+
+        return self.query("""
+            query workflowEnvironmentQuery($workflow_environment_id: ID!) {
+                workflowEnvironment(id: $workflow_environment_id) {
                     id
-                    key
-                    data
-                    isDraft
-                    workflowRunId
-                    operationRunId
+                    name
+                    workflowName
+                    dataDict
                     createdBy {
                         id
                         firstName
                         lastName
                         email
                     }
+                    organizationId
                     deleted
                     deletedAt
-                    updatedAt
                     createdAt
+                    updatedAt
                 }
             }
-            """,
-                  variables=variables
+        """,
+                          variables=variables
+        )
+
+    def get_workflow_environment_by_name_and_workflow_name(self, workflow_environment_name, workflow_name):
+        """Retrieve a workflow_environment given a unique combination of a name and a workflow name
+            Args:
+                workflow_environment_name (string) -- name of workflow environment
+                workflow_name (string) -- name of a workflow
+
+            Returns:
+                A dict representation of the retrieved workflow_environment
+        """
+        variables = {
+            'workflow_environment_name': workflow_environment_name,
+            'workflow_name': workflow_name
+        }
+
+        return self.query("""
+            query workflowEnvironmentByNameAndWorkflowNameQuery($workflow_environment_name: String!, $workflow_name: String!) {
+                workflowEnvironmentByNameAndWorkflowName(name: $workflow_environment_name, workflowName: $workflow_name) {
+                    id
+                    name
+                    workflowName
+                    dataDict
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    organizationId
+                    deleted
+                    deletedAt
+                    createdAt
+                    updatedAt
+                }
+            }
+        """,
+                          variables=variables
+        )
+
+    def get_all_workflow_environments_with_include_deleted_option(self, include_deleted=True):
+        """Retrieve all existing workflow environments
+            Args:
+                include_deleted (boolean) -- an optional flag (True by default) indicating whether or not to include
+                deleted workflow environment records
+
+            Returns:
+                A list of dict representations of the retrieved workflow environment records
+        """
+        variables = {
+            'include_deleted': include_deleted
+        }
+
+        return self.query("""
+            query allWorkflowEnvironmentsWithIncludeDeletedOptionQuery($include_deleted: Boolean) {
+                allWorkflowEnvironmentsWithIncludeDeletedOption(includeDeleted: $include_deleted) {
+                    id
+                    name
+                    workflowName
+                    dataDict
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    organizationId
+                    deleted
+                    deletedAt
+                    createdAt
+                    updatedAt
+                }
+            }
+        """,
+                          variables=variables
+        )
+
+    def get_workflow_environments_by_name(self, workflow_environment_name, include_deleted=True):
+        """Retrieve workflow_environments given a name (could couple with multiple workflow names)
+            Args:
+                workflow_environment_name (string) -- name of workflow environment (could correspond to multiple records)
+                include_deleted (boolean) -- an optional flag (True by default) indicating whether or not to include
+                deleted workflow environment records
+
+            Returns:
+                A list of dict representations of the retrieved workflow environment records
+        """
+        variables = {
+            'workflow_environment_name': workflow_environment_name,
+            'include_deleted': include_deleted
+        }
+
+        return self.query("""
+            query workflowEnvironmentsByNameQuery($workflow_environment_name: String!, $include_deleted: Boolean) {
+                workflowEnvironmentsByName(name: $workflow_environment_name, includeDeleted: $include_deleted) {
+                    id
+                    name
+                    workflowName
+                    dataDict
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    organizationId
+                    deleted
+                    deletedAt
+                    createdAt
+                    updatedAt
+                }
+            }
+        """,
+                          variables=variables
+        )
+
+    def get_workflow_environments_by_workflow_name(self, workflow_name, include_deleted=True):
+        """Retrieve workflow_environments given a workflow name (could couple with multiple workflow environment names)
+            Args:
+                workflow_name (string) -- name of a workflow (could correspond to multiple records)
+                include_deleted (boolean) -- an optional flag (True by default) indicating whether or not to include
+                deleted workflow environment records
+
+            Returns:
+                A list of dict representations of the retrieved workflow environment records
+        """
+        variables = {
+            'workflow_name': workflow_name,
+            'include_deleted': include_deleted
+        }
+
+        return self.query("""
+            query workflowEnvironmentsByWorkflowNameQuery($workflow_name: String!, $include_deleted: Boolean) {
+                workflowEnvironmentsByWorkflowName(workflowName: $workflow_name, includeDeleted: $include_deleted) {
+                    id
+                    name
+                    workflowName
+                    dataDict
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    organizationId
+                    deleted
+                    deletedAt
+                    createdAt
+                    updatedAt
+                }
+            }
+        """,
+                          variables=variables
         )
 
     def add_asset(self, key, data, workflow_run_id, is_draft, operation_run_id=None):
@@ -2585,20 +2970,20 @@ class CooperPair(object):
         Returns:
             A dict representing the parsed results of the mutation.
         """
-    
+
         variables = {
             'asset': {
                 'id': asset_id
             }
         }
-    
+
         if is_draft is not None:
             variables['asset']['isDraft'] = is_draft
         if data is not None:
             variables['asset']['data'] = data
         if deleted is not None:
             variables['asset']['deleted'] = deleted
-    
+
         result = self.query("""
              mutation updateAssetMutation($asset: UpdateAssetInput!) {
                  updateAsset(input: $asset) {
@@ -2623,8 +3008,45 @@ class CooperPair(object):
              }
              """,
                             variables=variables
-                            )
+        )
         return result
+
+    def get_asset(self, asset_id):
+        """Retrieve an asset given its id
+            Args:
+                asset_id (int or str Relay id) -- an asset id
+
+            Returns:
+                A dict representation of the retrieved asset
+        """
+        variables = {
+            'id': asset_id
+        }
+
+        return self.query("""
+            query assetQuery($id: ID!) {
+                asset(id: $id) {
+                    id
+                    key
+                    data
+                    isDraft
+                    workflowRunId
+                    operationRunId
+                    createdBy {
+                        id
+                        firstName
+                        lastName
+                        email
+                    }
+                    deleted
+                    deletedAt
+                    updatedAt
+                    createdAt
+                }
+            }
+            """,
+                          variables=variables
+        )
 
     def get_assets(self, workflow_run_id, asset_keys, include_drafts=False):
         """Retrieve a list of assets given a workflow_run_id and list of asset_keys
@@ -2661,4 +3083,6 @@ class CooperPair(object):
                 }
             }
             """,
-                          variables=variables)
+                          variables=variables
+        )
+
