@@ -214,7 +214,25 @@ class CooperPair(object):
                 )
             }
             for result in ge_results]
-    
+
+    def get_question_templates(self):
+        """
+        Return all valid question templates
+        :return: Graphql query result containing all question templates
+        """
+        return self.query("""
+            query questionTemplatesQuery {
+              question_templates {
+                question_type
+                answer_template
+                answer_validation
+                text
+                story_template
+                compatible_spec_types
+              }
+            }
+        """)
+
     def get_evaluation(self, evaluation_id):
         """
         Query an evaluation by id
@@ -618,6 +636,153 @@ class CooperPair(object):
                 }
             }
         }""")
+
+    def add_datasource_spec(self, name, description, tags):
+        """Add a new datasource specification object
+
+        Args:
+            name (str) - the name of the new datasource to be described
+            description (str) - a description of the datasource
+            tags (list) - tags to apply to the datasource specification
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addDatasourceSpecMutation($datasourceSpec: AddDatasourceSpecInput!) {
+                addDatasourceSpec(input: $datasourceSpec) {
+                    name
+                    description
+                    tags
+                }
+            }
+            """,
+            variables={
+                "datasourceSpec": {
+                    "name": name,
+                    "description": description,
+                    "tags": tags
+                }
+            })
+
+    def add_other_spec(self, datasource_spec_id, name, description, tags):
+        """Add a new 'other' specification object
+
+        Args:
+            datasource_spec_id (int) - the id of the datasource to which this spec applies
+            name (str) - the name of the new datasource to be described
+            description (str) - a description of the datasource
+            tags (list) - tags to apply to the datasource specification
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addOtherSpecMutation($otherSpec: AddOtherSpecInput!) {
+                addOtherSpec(input: $otherSpec) {
+                    datasource_spec_id
+                    name
+                    description
+                    tags
+                }
+            }
+            """,
+            variables={
+                "otherSpec": {
+                    "datasource_spec_id": datasource_spec_id,
+                    "name": name,
+                    "description": description,
+                    "tags": tags
+                }
+            })
+
+    def add_dataset_spec(self, datasource_spec_id, name, description, tags):
+        """Add a new dataset specification object
+
+        Args:
+            datasource_spec_id (int) - the id of the datasource to which this spec applies
+            name (str) - the name of the new datasource to be described
+            description (str) - a description of the datasource
+            tags (list) - tags to apply to the datasource specification
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addDatasetSpecMutation($datasetSpec: AddDatasetSpecInput!) {
+                addDatasetSpec(input: $datasetSpec) {
+                    datasource_spec_id
+                    name
+                    description
+                    tags
+                }
+            }
+            """,
+            variables={
+                "datasetSpec": {
+                    "datasource_spec_id": datasource_spec_id,
+                    "name": name,
+                    "description": description,
+                    "tags": tags
+                }
+            })
+
+    def add_table_spec(self, datasource_spec_id, name, description, tags):
+        """Add a new dataset specification object
+
+        Args:
+            datasource_spec_id (int) - the id of the datasource to which this spec applies
+            name (str) - the name of the new datasource to be described
+            description (str) - a description of the datasource
+            tags (list) - tags to apply to the datasource specification
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addTableSpecMutation($tableSpec: AddTableSpecInput!) {
+                addTableSpec(input: $tableSpec) {
+                    datasource_spec_id
+                    name
+                    description
+                    tags
+                }
+            }
+            """,
+            variables={
+              "tableSpec": {
+                  "datasource_spec_id": datasource_spec_id,
+                  "name": name,
+                  "description": description,
+                  "tags": tags
+              }
+            })
+
+    def add_column_spec(self, table_spec_id, name, description, tags):
+        """Add a new dataset specification object
+
+        Args:
+            table_spec_id (int) - the id of the datasource to which this spec applies
+            name (str) - the name of the new datasource to be described
+            description (str) - a description of the datasource
+            tags (list) - tags to apply to the datasource specification
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addColumnSpecMutation($columnSpec: AddColumnSpecInput!) {
+                addColumnSpec(input: $columnSpec) {
+                    datasource_spec_id
+                    name
+                    description
+                    tags
+                }
+            }
+            """,
+            variables={
+              "columnSpec": {
+                  "datasource_spec_id": table_spec_id,
+                  "name": name,
+                  "description": description,
+                  "tags": tags
+              }
+            })
 
     def add_dataset(self, project_id, filename=None, label=None):
         """Add a new dataset object.
