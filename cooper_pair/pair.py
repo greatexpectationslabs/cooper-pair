@@ -650,9 +650,12 @@ class CooperPair(object):
         return self.query("""
             mutation addDatasourceSpecMutation($datasourceSpec: AddDatasourceSpecInput!) {
                 addDatasourceSpec(input: $datasourceSpec) {
-                    name
-                    description
-                    tags
+                    datasourceSpec {
+                        id
+                        name
+                        description
+                        tags
+                    }
                 }
             }
             """,
@@ -678,10 +681,13 @@ class CooperPair(object):
         return self.query("""
             mutation addOtherSpecMutation($otherSpec: AddOtherSpecInput!) {
                 addOtherSpec(input: $otherSpec) {
-                    datasource_spec_id
-                    name
-                    description
-                    tags
+                    otherSpec {
+                        id
+                        datasource_spec_id
+                        name
+                        description
+                        tags
+                    }
                 }
             }
             """,
@@ -708,10 +714,13 @@ class CooperPair(object):
         return self.query("""
             mutation addDatasetSpecMutation($datasetSpec: AddDatasetSpecInput!) {
                 addDatasetSpec(input: $datasetSpec) {
-                    datasource_spec_id
-                    name
-                    description
-                    tags
+                    datasetSpec {
+                        id
+                        datasource_spec_id
+                        name
+                        description
+                        tags
+                    }
                 }
             }
             """,
@@ -738,10 +747,13 @@ class CooperPair(object):
         return self.query("""
             mutation addTableSpecMutation($tableSpec: AddTableSpecInput!) {
                 addTableSpec(input: $tableSpec) {
-                    datasource_spec_id
-                    name
-                    description
-                    tags
+                    tableSpec {
+                        id
+                        datasource_spec_id
+                        name
+                        description
+                        tags
+                    }
                 }
             }
             """,
@@ -768,10 +780,13 @@ class CooperPair(object):
         return self.query("""
             mutation addColumnSpecMutation($columnSpec: AddColumnSpecInput!) {
                 addColumnSpec(input: $columnSpec) {
-                    datasource_spec_id
-                    name
-                    description
-                    tags
+                    columnSpec {
+                        id
+                        datasource_spec_id
+                        name
+                        description
+                        tags
+                    }
                 }
             }
             """,
