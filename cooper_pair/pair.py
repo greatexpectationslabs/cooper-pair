@@ -215,23 +215,28 @@ class CooperPair(object):
             }
             for result in ge_results]
 
-    def get_question_templates(self):
+    def list_question_templates(self):
         """
         Return all valid question templates
         :return: Graphql query result containing all question templates
         """
-        return self.query("""
-            query questionTemplatesQuery {
-              question_templates {
-                question_type
-                answer_template
-                answer_validation
-                text
-                story_template
-                compatible_spec_types
-              }
+        return self.query("""{
+            allQuestionTemplates {
+                edges {
+                    node {
+                        id
+                        scId
+                        questionType
+                        text
+                        expectationType
+                        answerTemplate
+                        answerValidation
+                        storyTemplate
+                        compatibleSpecTypes
+                    }
+                }
             }
-        """)
+        }""")
 
     def get_evaluation(self, evaluation_id):
         """
