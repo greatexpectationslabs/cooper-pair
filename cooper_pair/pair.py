@@ -214,7 +214,30 @@ class CooperPair(object):
                 )
             }
             for result in ge_results]
-    
+
+    def list_question_templates(self):
+        """
+        Return all valid question templates
+        :return: Graphql query result containing all question templates
+        """
+        return self.query("""{
+            allQuestionTemplates {
+                edges {
+                    node {
+                        id
+                        scId
+                        questionType
+                        text
+                        expectationType
+                        answerTemplate
+                        answerValidation
+                        storyTemplate
+                        compatibleSpecTypes
+                    }
+                }
+            }
+        }""")
+
     def get_evaluation(self, evaluation_id):
         """
         Query an evaluation by id
@@ -619,6 +642,408 @@ class CooperPair(object):
             }
         }""")
 
+    def add_datasource_spec(self, name, description=None, tags=[]):
+        """Add a new datasource specification object
+
+        Args:
+            name (str) - the name of the new datasource to be described
+            description (str) - a description of the datasource
+            tags (list) - tags to apply to the datasource specification
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addDatasourceSpecMutation($datasourceSpec: AddDatasourceSpecInput!) {
+                addDatasourceSpec(input: $datasourceSpec) {
+                    datasourceSpec {
+                        id
+                        name
+                        description
+                        tags
+                    }
+                }
+            }
+            """,
+            variables={
+                "datasourceSpec": {
+                    "name": name,
+                    "description": description,
+                    "tags": tags
+                }
+            })
+
+    def add_other_spec(self, datasource_spec_id, name, description=None, tags=[]):
+        """Add a new 'other' specification object
+
+        Args:
+            datasource_spec_id (int) - the id of the datasource spec to which this spec applies
+            name (str) - the name of the new entity to be described
+            description (str) - a description of the entity
+            tags (list) - tags to apply to the entity specification
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addOtherSpecMutation($otherSpec: AddOtherSpecInput!) {
+                addOtherSpec(input: $otherSpec) {
+                    otherSpec {
+                        id
+                        datasourceSpecId
+                        name
+                        description
+                        tags
+                    }
+                }
+            }
+            """,
+            variables={
+                "otherSpec": {
+                    "datasourceSpecId": datasource_spec_id,
+                    "name": name,
+                    "description": description,
+                    "tags": tags
+                }
+            })
+
+    def add_dataset_spec(self, datasource_spec_id, name, description=None, tags=[]):
+        """Add a new dataset specification object
+
+        Args:
+            datasource_spec_id (int) - the id of the datasource spec to which this spec applies
+            name (str) - the name of the new dataset to be described
+            description (str) - a description of the dataset
+            tags (list) - tags to apply to the dataset specification
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addDatasetSpecMutation($datasetSpec: AddDatasetSpecInput!) {
+                addDatasetSpec(input: $datasetSpec) {
+                    datasetSpec {
+                        id
+                        datasourceSpecId
+                        name
+                        description
+                        tags
+                    }
+                }
+            }
+            """,
+            variables={
+                "datasetSpec": {
+                    "datasourceSpecId": datasource_spec_id,
+                    "name": name,
+                    "description": description,
+                    "tags": tags
+                }
+            })
+
+    def add_table_spec(self, datasource_spec_id, name, description=None, tags=[]):
+        """Add a new table specification object
+
+        Args:
+            datasource_spec_id (int) - the id of the datasource spec to which this spec applies
+            name (str) - the name of the new table to be described
+            description (str) - a description of the table
+            tags (list) - tags to apply to the table specification
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addTableSpecMutation($tableSpec: AddTableSpecInput!) {
+                addTableSpec(input: $tableSpec) {
+                    tableSpec {
+                        id
+                        datasourceSpecId
+                        name
+                        description
+                        tags
+                    }
+                }
+            }
+            """,
+            variables={
+              "tableSpec": {
+                  "datasourceSpecId": datasource_spec_id,
+                  "name": name,
+                  "description": description,
+                  "tags": tags
+              }
+            })
+
+    def add_column_spec(self, table_spec_id, name, description=None, tags=[]):
+        """Add a new column specification object
+
+        Args:
+            table_spec_id (int) - the id of the TableSpec to which this spec applies
+            name (str) - the name of the new column to be described
+            description (str) - a description of the column
+            tags (list) - tags to apply to the column specification
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addColumnSpecMutation($columnSpec: AddColumnSpecInput!) {
+                addColumnSpec(input: $columnSpec) {
+                    columnSpec {
+                        id
+                        tableSpecId
+                        name
+                        description
+                        tags
+                    }
+                }
+            }
+            """,
+            variables={
+              "columnSpec": {
+                  "tableSpecId": table_spec_id,
+                  "name": name,
+                  "description": description,
+                  "tags": tags
+              }
+            })
+        
+    def add_cross_table_spec(self, datasource_spec_id, name, description=None, tags=[]):
+        """Add a new cross table specification object
+
+        Args:
+            datasource_spec_id (int) - the id of the datasource spec to which this spec applies
+            name (str) - the name of the new table pair to be described
+            description (str) - a description of the table pair
+            tags (list) - tags to apply to the cross table specification
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addCrossTableSpecMutation($crossTableSpec: AddCrossTableSpecInput!) {
+                addCrossTableSpec(input: $crossTableSpec) {
+                    crossTableSpec {
+                        id
+                        datasourceSpecId
+                        name
+                        description
+                        tags
+                    }
+                }
+            }
+            """,
+            variables={
+              "crossTableSpec": {
+                  "datasourceSpecId": datasource_spec_id,
+                  "name": name,
+                  "description": description,
+                  "tags": tags
+              }
+            })
+        
+    def add_cross_column_spec(self, table_spec_id, name, description=None, tags=[]):
+        """Add a new cross column specification object
+
+        Args:
+            table_spec_id (int) - the id of the table spec to which this spec applies
+            name (str) - the name of the new column pair to be described
+            description (str) - a description of the column pair
+            tags (list) - tags to apply to the cross column specification
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addCrossColumnSpecMutation($crossColumnSpec: AddCrossColumnSpecInput!) {
+                addCrossColumnSpec(input: $crossColumnSpec) {
+                    crossColumnSpec {
+                        id
+                        tableSpecId
+                        name
+                        description
+                        tags
+                    }
+                }
+            }
+            """,
+            variables={
+              "crossColumnSpec": {
+                  "tableSpecId": table_spec_id,
+                  "name": name,
+                  "description": description,
+                  "tags": tags
+              }
+            })
+
+    def add_question_template(
+            self,
+            text,
+            question_type,
+            answer_template,
+            answer_validation,
+            story_template,
+            compatible_spec_types,
+            sc_id,
+            expectation_type=None,
+    ):
+    
+        """Add a new spec question template object
+
+        Args:
+            text - (string) - question text
+            question_type - (string) - question type (radio, etc.)
+            expectation_type - (string) - corresponding expectation type, if applicable
+            answer_template - (json) - answer template
+            answer_validation - (json) - answer json validation info
+            story_template - (json) - template of answer summary
+            compatible_spec_types - (list) - spec types question can be applied to
+            sc_id - (string) - UUID
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addQuestionTemplateMutation($questionTemplate: AddQuestionTemplateInput!) {
+                addQuestionTemplate(input: $questionTemplate) {
+                    questionTemplate {
+                        id
+                        text
+                        questionType
+                        answerTemplate
+                        answerValidation
+                        storyTemplate
+                        compatibleSpecTypes
+                        scId
+                        expectationType
+                    }
+                }
+            }
+            """,
+                variables={
+                    "questionTemplate": {
+                      "text": text,
+                      "questionType": question_type,
+                      "answerTemplate": json.dumps(answer_template),
+                      "answerValidation": json.dumps(answer_validation),
+                      "storyTemplate": json.dumps(story_template),
+                      "compatibleSpecTypes": compatible_spec_types,
+                      "scId": sc_id,
+                      "expectationType": expectation_type
+                    }
+                })
+        
+    def add_question_definition(
+            self,
+            question_type,
+            text,
+            answer_template,
+            answer_validation,
+            story_template,
+            question_template_id=None,
+            expectation_type=None
+    ):
+    
+        """Add a new spec question definition object
+
+        Args:
+            text - (string) - question text
+            question_type - (string) - question type (radio, etc.)
+            expectation_type - (string) - corresponding expectation type, if applicable
+            answer_template - (json) - answer template
+            answer_validation - (json) - answer json validation info
+            story_template - (json) - template of answer summary
+            question_template_id - (int) - id of corresponding question template (optional)
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addQuestionDefinitionMutation($questionDefinition: AddQuestionDefinitionInput!) {
+                addQuestionDefinition(input: $questionDefinition) {
+                    questionDefinition {
+                        id
+                        text
+                        questionType
+                        answerTemplate
+                        answerValidation
+                        storyTemplate
+                        questionTemplateId
+                        expectationType
+                    }
+                }
+            }
+            """,
+                variables={
+                    "questionDefinition": {
+                      "text": text,
+                      "questionType": question_type,
+                      "answerTemplate": json.dumps(answer_template),
+                      "answerValidation": json.dumps(answer_validation),
+                      "storyTemplate": json.dumps(story_template),
+                      "questionTemplateId": question_template_id,
+                      "expectationType": expectation_type
+                    }
+                })
+        
+    def add_spec_question(self, question_definition_id, spec_id, status, flagged=False):
+        """Add a new spec question object
+
+        Args:
+            question_definition_id (int) - the id of the corresponding question definition
+            spec_id (int) - the id of the corresponding spec
+            flagged (boolean) - boolean flag
+            status (string) - describes status of spec question
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addSpecQuestionMutation($specQuestion: AddSpecQuestionInput!) {
+                addSpecQuestion(input: $specQuestion) {
+                    specQuestion {
+                        id
+                        questionDefinitionId
+                        specId
+                        flagged
+                        status
+                    }
+                }
+            }
+            """,
+            variables={
+              "specQuestion": {
+                  "questionDefinitionId": question_definition_id,
+                  "specId": spec_id,
+                  "flagged": flagged,
+                  "status": status
+              }
+            })
+        
+    def add_spec_question_answer(self, spec_question_id, status, answer, supporting_evidence={}):
+        """Add a new spec question answer object
+
+        Args:
+            spec_question_id (int) - the id of the corresponding spec question
+            status (string) - describes status of spec question answer
+            supporting_evidence (json) - json object describing evidence in support of hypothesized answer
+            answer (json) - json object describing answer to corresponding spec question
+
+        Returns:
+            A dict containing the parsed results of the mutation"""
+        return self.query("""
+            mutation addSpecQuestionAnswerMutation($specQuestionAnswer: AddSpecQuestionAnswerInput!) {
+                addSpecQuestionAnswer(input: $specQuestionAnswer) {
+                    specQuestionAnswer {
+                        id
+                        specQuestionId
+                        status
+                        supportingEvidence
+                        answer
+                    }
+                }
+            }
+            """,
+            variables={
+              "specQuestionAnswer": {
+                  "specQuestionId": spec_question_id,
+                  "status": status,
+                  "supportingEvidence": json.dumps(supporting_evidence),
+                  "answer": json.dumps(answer)
+              }
+            })
+    
     def add_dataset(self, project_id, filename=None, label=None):
         """Add a new dataset object.
 
@@ -661,7 +1086,7 @@ class CooperPair(object):
                 }
             }
         )
-        
+
     def add_dataset_simple(self, label, checkpoint_id, locator_dict, project_id=None):
         """
         Add a new Dataset object. Bypasses AddDataset mutation logic used for
@@ -707,7 +1132,7 @@ class CooperPair(object):
                 }
             }
         )
-
+        
     def add_dataset_from_file(
             self, fd, project_id, filename=None):
         """Add a new dataset from a file or file-like object.
@@ -819,7 +1244,7 @@ class CooperPair(object):
                 }
             }
             """, variables=variables)
-    
+
     def munge_ge_expectations_config(self, expectations_config):
         """
         Convert a Great Expectations expectations_config into a list
@@ -838,7 +1263,7 @@ class CooperPair(object):
             })
     
         return munged_expectations
-
+    
     def munge_ge_expectations_list(self, expectations):
         """
         Convert a Great Expectations expectation list to a list
