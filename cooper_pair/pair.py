@@ -837,11 +837,11 @@ class CooperPair(object):
               }
             })
         
-    def add_cross_column_spec(self, datasource_spec_id, name, description=None, tags=[]):
+    def add_cross_column_spec(self, table_spec_id, name, description=None, tags=[]):
         """Add a new cross column specification object
 
         Args:
-            datasource_spec_id (int) - the id of the datasource spec to which this spec applies
+            table_spec_id (int) - the id of the table spec to which this spec applies
             name (str) - the name of the new column pair to be described
             description (str) - a description of the column pair
             tags (list) - tags to apply to the cross column specification
@@ -853,7 +853,7 @@ class CooperPair(object):
                 addCrossColumnSpec(input: $crossColumnSpec) {
                     crossColumnSpec {
                         id
-                        datasourceSpecId
+                        tableSpecId
                         name
                         description
                         tags
@@ -863,7 +863,7 @@ class CooperPair(object):
             """,
             variables={
               "crossColumnSpec": {
-                  "datasourceSpecId": datasource_spec_id,
+                  "tableSpecId": table_spec_id,
                   "name": name,
                   "description": description,
                   "tags": tags
