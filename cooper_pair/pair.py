@@ -642,7 +642,7 @@ class CooperPair(object):
             }
         }""")
 
-    def add_datasource_spec(self, name, description, tags):
+    def add_datasource_spec(self, name, description=None, tags=[]):
         """Add a new datasource specification object
 
         Args:
@@ -655,6 +655,7 @@ class CooperPair(object):
         return self.query("""
             mutation addDatasourceSpecMutation($datasourceSpec: AddDatasourceSpecInput!) {
                 addDatasourceSpec(input: $datasourceSpec) {
+                    id
                     name
                     description
                     tags
