@@ -688,7 +688,7 @@ class CooperPair(object):
                 addOtherSpec(input: $otherSpec) {
                     otherSpec {
                         id
-                        datasource_spec_id
+                        datasourceSpecId
                         name
                         description
                         tags
@@ -721,7 +721,7 @@ class CooperPair(object):
                 addDatasetSpec(input: $datasetSpec) {
                     datasetSpec {
                         id
-                        datasource_spec_id
+                        datasourceSpecId
                         name
                         description
                         tags
@@ -754,7 +754,7 @@ class CooperPair(object):
                 addTableSpec(input: $tableSpec) {
                     tableSpec {
                         id
-                        datasource_spec_id
+                        datasourceSpecId
                         name
                         description
                         tags
@@ -787,7 +787,7 @@ class CooperPair(object):
                 addColumnSpec(input: $columnSpec) {
                     columnSpec {
                         id
-                        datasource_spec_id
+                        tableSpecId
                         name
                         description
                         tags
@@ -818,11 +818,13 @@ class CooperPair(object):
         return self.query("""
             mutation addCrossTableSpecMutation($crossTableSpec: AddCrossTableSpecInput!) {
                 addCrossTableSpec(input: $crossTableSpec) {
-                    id
-                    datasourceSpecId
-                    name
-                    description
-                    tags
+                    crossTableSpec {
+                        id
+                        datasourceSpecId
+                        name
+                        description
+                        tags
+                    }
                 }
             }
             """,
@@ -849,11 +851,13 @@ class CooperPair(object):
         return self.query("""
             mutation addCrossColumnSpecMutation($crossColumnSpec: AddCrossColumnSpecInput!) {
                 addCrossColumnSpec(input: $crossColumnSpec) {
-                    id
-                    datasourceSpecId
-                    name
-                    description
-                    tags
+                    crossColumnSpec {
+                        id
+                        datasourceSpecId
+                        name
+                        description
+                        tags
+                    }
                 }
             }
             """,
@@ -895,15 +899,17 @@ class CooperPair(object):
         return self.query("""
             mutation addQuestionTemplateMutation($questionTemplate: AddQuestionTemplateInput!) {
                 addQuestionTemplate(input: $questionTemplate) {
-                    id
-                    text
-                    questionType
-                    answerTemplate
-                    answerValidation
-                    storyTemplate
-                    compatibleSpecTypes
-                    scId
-                    expectationType
+                    questionTemplate {
+                        id
+                        text
+                        questionType
+                        answerTemplate
+                        answerValidation
+                        storyTemplate
+                        compatibleSpecTypes
+                        scId
+                        expectationType
+                    }
                 }
             }
             """,
@@ -947,19 +953,21 @@ class CooperPair(object):
         return self.query("""
             mutation addQuestionDefinitionMutation($questionDefinition: AddQuestionDefinitionInput!) {
                 addQuestionDefinition(input: $questionDefinition) {
-                    id
-                    text
-                    questionType
-                    answerTemplate
-                    answerValidation
-                    storyTemplate
-                    questionTemplateId
-                    expectationType
+                    questionDefinition {
+                        id
+                        text
+                        questionType
+                        answerTemplate
+                        answerValidation
+                        storyTemplate
+                        questionTemplateId
+                        expectationType
+                    }
                 }
             }
             """,
                 variables={
-                    "questionTemplate": {
+                    "questionDefinition": {
                       "text": text,
                       "questionType": question_type,
                       "answerTemplate": json.dumps(answer_template),
@@ -984,11 +992,13 @@ class CooperPair(object):
         return self.query("""
             mutation addSpecQuestionMutation($specQuestion: AddSpecQuestionInput!) {
                 addSpecQuestion(input: $specQuestion) {
-                    id
-                    questionDefinitionId
-                    specId
-                    flagged
-                    status
+                    specQuestion {
+                        id
+                        questionDefinitionId
+                        specId
+                        flagged
+                        status
+                    }
                 }
             }
             """,
@@ -1015,11 +1025,13 @@ class CooperPair(object):
         return self.query("""
             mutation addSpecQuestionAnswerMutation($specQuestionAnswer: AddSpecQuestionAnswerInput!) {
                 addSpecQuestionAnswer(input: $specQuestionAnswer) {
-                    id
-                    specQuestionId
-                    status
-                    supportingEvidence
-                    answer
+                    specQuestionAnswer {
+                        id
+                        specQuestionId
+                        status
+                        supportingEvidence
+                        answer
+                    }
                 }
             }
             """,
